@@ -5,18 +5,18 @@
 {
 	"version": "0.2.0",
 	"configurations": [
-		{
-			"name": "Run Extension",
-			"type": "extensionHost",
-			"request": "launch",
-			"args": [
-				"--extensionDevelopmentPath=${workspaceFolder}"
-			],
-			"outFiles": [
-				"${workspaceFolder}/dist/**/*.js"
-			],
-			"preLaunchTask": "${defaultBuildTask}"
-		},
+        {
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}"
+            ],
+            "name": "Launch Extension",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "request": "launch",
+            "debugWebviews": true,
+            "type": "extensionHost"
+        },
 		{
 			"name": "Extension Tests",
 			"type": "extensionHost",

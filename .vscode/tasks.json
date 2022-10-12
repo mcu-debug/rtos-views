@@ -9,7 +9,7 @@
 			"problemMatcher": "$ts-webpack-watch",
 			"isBackground": true,
 			"presentation": {
-				"reveal": "never",
+				"reveal": "always",
 				"group": "watchers"
 			},
 			"group": {
