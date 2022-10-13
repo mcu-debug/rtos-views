@@ -218,6 +218,7 @@ class MyDebugTracker {
             }
             case DebugSessionStatus.Terminated: {
                 delete MyDebugTracker.allSessions[event.sessionId];
+                this.handler.onTerminated(session);
                 break;
             }
         }
@@ -256,13 +257,14 @@ export class RTOSTracker implements DebugEventHandler {
         }
     }
 
-    public async onStopped(session: vscode.DebugSession, frameId: number) {
+    public onStopped(session: vscode.DebugSession, frameId: number) {
         for (const rtosSession of this.sessionMap.values()) {
             if (rtosSession.session.id === session.id) {
                 rtosSession.lastFrameId = frameId;
                 if (this.enabled && this.visible) {
-                    await rtosSession.onStopped(frameId);
-                    this.provider.updateHtml();
+                    rtosSession.onStopped(frameId).then(() => {
+                        this.provider.updateHtml();
+                    });
                 }
                 break;
             }
@@ -383,7 +385,7 @@ export class RTOSTracker implements DebugEventHandler {
         }
 
         for (const rtosSession of this.sessionMap.values()) {
-            const name = `Session Name: "${rtosSession.session.name}"`;
+            const name = `RTOS Views: Session Name: "${rtosSession.session.name}"`;
             if (!rtosSession.rtos) {
                 const nameAndStatus = name + ' -- No RTOS detected';
                 ret.html += /*html*/`<h4>${nameAndStatus}</h4>\n`;

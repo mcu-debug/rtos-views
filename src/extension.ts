@@ -1,4 +1,4 @@
-import * as vscode from 'vscode'
+import * as vscode from 'vscode';
 import { RTOSTracker } from './rtos/rtos';
 
 export function activate(context: vscode.ExtensionContext) {

@@ -62,7 +62,7 @@
       "panel": [
         {
           "id": "rtos-views",
-          "title": "RTOS",
+          "title": "xRTOS",
           "icon": "images/hex-on-dark.svg"
         }
       ]
@@ -72,7 +72,7 @@
         {
           "id": "rtos-views.rtos",
           "type": "webview",
-          "name": "RTOS",
+          "name": "xRTOS",
           "when": "mcu-debug.rtos-views:showRTOS"
         }
       ]
