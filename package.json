@@ -2,7 +2,7 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "publisher": "mcu-debug",
     "repository": {
         "type": "git",

@@ -130,8 +130,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     /* Also, add the following two macros to provide a high speed counter -- something at least 10x faster than<br>
                     ** your RTOS scheduler tick. One strategy could be to use a HW counter and sample its current value when needed<br>
                     */<br>
-                    #define ${strong('portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()')} /* Define this to initialize your timer */<br>
-                    #define ${strong('portGET_RUN_TIME_COUNTER_VALUE()')}${'&nbsp'.repeat(9)}/* Define this to sample the counter */<br>
+                    #define ${strong('portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()')} /* Define this to initialize your timer/counter */<br>
+                    #define ${strong('portGET_RUN_TIME_COUNTER_VALUE()')}${'&nbsp'.repeat(9)}/* Define this to sample the timer/counter */<br>
                     `;
                 }
                 if (ret) {
