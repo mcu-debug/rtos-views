@@ -7,6 +7,7 @@ import * as RTOSCommon from './rtos-common';
 import { RTOSFreeRTOS } from './rtos-freertos';
 import { RTOSUCOS2 } from './rtos-ucosii';
 import { RTOSEmbOS } from './rtos-embos';
+import { RTOSChibiOS } from './rtos-chibios';
 
 import {
     IDebugTracker,
@@ -33,7 +34,9 @@ const RTOS_TYPES = {
     'FreeRTOS': RTOSFreeRTOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'uC/OS-II': RTOSUCOS2,
-    'embOS': RTOSEmbOS
+    'embOS': RTOSEmbOS,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    'ChibiOS': RTOSChibiOS
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -186,7 +189,7 @@ class MyDebugTracker {
         });
     }
 
-    static allSessions: {[sessionId: string]: vscode.DebugSession} = {};
+    static allSessions: { [sessionId: string]: vscode.DebugSession } = {};
     async debugTrackerEventHandler(event: IDebuggerTrackerEvent) {
         let session = MyDebugTracker.allSessions[event.sessionId];
         const isNewSession = !session && event.session;

@@ -15,10 +15,15 @@
         "cspy",
         "esbuild",
         "OSTCB",
+        "pqueue",
         "Prio",
         "rity",
+        "rlist",
+        "rqueue",
         "RTOSEMBOS",
-        "RTOSUCOS"
+        "RTOSUCOS",
+        "wabase",
+        "wtobjp"
     ],
     "prettier.jsxSingleQuote": true,
     "prettier.singleQuote": true,
