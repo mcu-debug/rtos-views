@@ -7,7 +7,7 @@
 	"configurations": [
         {
             "args": [
-                "--extensionDevelopmentPath=${workspaceFolder}"
+                "--extensionDevelopmentPath=${workspaceFolder} --trace-deprecation"
             ],
             "name": "Launch Extension",
             "outFiles": [

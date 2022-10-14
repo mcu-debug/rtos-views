@@ -17,6 +17,7 @@
     "categories": [
         "Other"
     ],
+    "icon": "icon.png",
     "keywords": [
         "cortex-debug",
         "cppdbg",
@@ -28,8 +29,7 @@
         "onDebugResolve:cortex-debug",
         "onDebugResolve:cppdbg",
         "onDebugResolve:cspy",
-        "onCommand:mcu-debug.rtos-views.helloWorld",
-        "onStartupFinished"
+        "onCommand:mcu-debug.rtos-views.helloWorld"
     ],
     "main": "./dist/extension.js",
     "contributes": {
