@@ -213,7 +213,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
                     if (reglistHeader && 0 !== reglistHeader) {
                         let nextEntry = await this.getExprValChildrenObj('(ch_queue_t *)' + reglistHeader, frameId);
-                        let currentReglist = getNumber(nextEntry['next-val']);
+                        let currentReglist = getNumber(nextEntry['next'].val);
                         let i = 0;
 
                         // TODO: add reglist integrity check
@@ -222,20 +222,20 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                             const currentThreadAddr = currentReglist - this.threadOffset;
                             const currentThread = await this.getExprValChildrenObj('(thread_t *) ' + currentThreadAddr, frameId);
                             const currentThreadPqueue = await this.getExprValChildrenObj('((thread_t *) ' + currentThreadAddr + ')->hdr.pqueue', frameId);
-                            const currentThreadStateDetails = await this.getVarChildrenObj(currentThread['u-ref'], 'u') || {};
-                            const currentThreadStats = await this.getVarChildrenObj(currentThread['stats-ref'], 'stats') || {};
+                            const currentThreadStateDetails = await this.getVarChildrenObj(currentThread['u']?.ref, 'u') || {};
+                            const currentThreadStats = await this.getVarChildrenObj(currentThread['stats']?.ref, 'stats') || {};
 
                             const threadRunning = (currentThreadAddr === this.rlistCurrent);
-                            const threadName = getCString(currentThread['name-val'], '<no name>');
-                            const threadState = getThreadStateName(getNumberNVL(currentThread['state-val'], chThreadState._SIZE));
-                            const threadFlags = getNumberNVL(currentThread['flags-val'], 0);
-                            const threadPrio = getNumberNVL(currentThreadPqueue['prio-val'], 0);
-                            const threadRefs = getNumberNVL(currentThread['refs-val'], 0);
-                            const threadTime = nvl(currentThread['time-val'], '-');
-                            const threadWaitForObj = currentThreadStateDetails['wtobjp-val'];
-                            const threadStatsN = currentThreadStats['n-val'];
-                            const threadStatsWorst = currentThreadStats['worst-val'];
-                            const threadStatsCumulative = currentThreadStats['cumulative-val'];
+                            const threadName = getCString(currentThread['name'].val, '<no name>');
+                            const threadState = getThreadStateName(getNumberNVL(currentThread['state']?.val, chThreadState._SIZE));
+                            const threadFlags = getNumberNVL(currentThread['flags']?.val, 0);
+                            const threadPrio = getNumberNVL(currentThreadPqueue['prio']?.val, 0);
+                            const threadRefs = getNumberNVL(currentThread['refs']?.val, 0);
+                            const threadTime = nvl(currentThread['time']?.val, '-');
+                            const threadWaitForObj = currentThreadStateDetails['wtobjp']?.val;
+                            const threadStatsN = currentThreadStats['n']?.val;
+                            const threadStatsWorst = currentThreadStats['worst']?.val;
+                            const threadStatsCumulative = currentThreadStats['cumulative']?.val;
 
                             const stackInfo = await this.getStackInfo(currentThread);
 
@@ -264,7 +264,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                             mySetter(DisplayFields.FLAGS, RTOSCommon.hexFormat(threadFlags, 2));
                             mySetter(DisplayFields.REFS, RTOSCommon.hexFormat(threadRefs));
                             mySetter(DisplayFields.TIME, threadTime);
-                            mySetter(DisplayFields.WTOBJP, RTOSCommon.hexFormat(threadWaitForObj));
+                            mySetter(DisplayFields.WTOBJP, RTOSCommon.hexFormat(parseInt(threadWaitForObj)));
                             mySetter(DisplayFields.STATS_N, threadStatsN);
                             mySetter(DisplayFields.STATS_WORST, threadStatsWorst);
                             mySetter(DisplayFields.STATS_CUMULATIVE, threadStatsCumulative);
@@ -280,7 +280,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                             this.createHmlHelp(threadInfo, currentThread);
 
                             nextEntry = await this.getExprValChildrenObj('(ch_queue_t *)' + currentReglist, frameId);
-                            currentReglist = nextEntry['next-val'] ? parseInt(nextEntry['next-val']) : 0;
+                            currentReglist = nextEntry['next']?.val ? parseInt(nextEntry['next']?.val) : 0;
 
                         } while (reglistHeader !== currentReglist);
 
@@ -307,12 +307,12 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             stackPeak: undefined
         };
 
-        const currentThreadCtx = await this.getVarChildrenObj(thInfo['ctx-ref'], 'ctx');
-        const currentThreadCtxRegs = currentThreadCtx ? await this.getVarChildrenObj(currentThreadCtx['sp-ref'], 'sp') : null;
+        const currentThreadCtx = await this.getVarChildrenObj(thInfo['ctx']?.ref, 'ctx');
+        const currentThreadCtxRegs = currentThreadCtx ? await this.getVarChildrenObj(currentThreadCtx['sp']?.ref, 'sp') : null;
 
         if (currentThreadCtxRegs && currentThreadCtx) {
-            stackInfo.stackTop = getNumberNVL(currentThreadCtxRegs.hasOwnProperty('r13-val') ? currentThreadCtxRegs['r13-val'] : currentThreadCtx['sp-val'], 0);
-            stackInfo.stackEnd = getNumberNVL(thInfo['wabase-val'], 0);
+            stackInfo.stackTop = getNumberNVL(currentThreadCtxRegs.hasOwnProperty('r13-val') ? currentThreadCtxRegs['r13']?.val : currentThreadCtx['sp']?.val, 0);
+            stackInfo.stackEnd = getNumberNVL(thInfo['wabase']?.val, 0);
 
             if (stackInfo.stackTop === 0 || stackInfo.stackEnd === 0) {
                 stackInfo.stackFree = undefined;

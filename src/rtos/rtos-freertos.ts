@@ -113,13 +113,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 function strong(s: string) {
                     return `<strong>${s}</strong>`;
                 }
-                if (!thInfo['uxTCBNumber-val']) {
+                if (!thInfo['uxTCBNumber'].val) {
                     ret += `Thread ID missing......: Enable macro ${strong('configUSE_TRACE_FACILITY')} in FW<br>`;
                 }
                 if (!th.stackInfo.stackEnd) {
                     ret += `Stack End missing......: Enable macro ${strong('configRECORD_STACK_HIGH_ADDRESS')} in FW<br>`;
                 }
-                if ((thInfo['pcTaskName-val'] === '[0]') || (thInfo['pcTaskName-val'] === '[1]')) {
+                if ((thInfo['pcTaskName'].val === '[0]') || (thInfo['pcTaskName'].val === '[1]')) {
                     ret += `Thread Name missing....: Set macro ${strong('configMAX_TASK_NAME_LEN')} to something greater than 1 in FW<br>`;
                 }
 
@@ -255,21 +255,21 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 promise = this.getVarChildrenObj(varRef, 'task-list');
             }
             promise.then(async (obj: any) => {
-                const threadCount = parseInt(obj['uxNumberOfItems-val']);
-                const listEndRef = obj['xListEnd-ref'];
+                const threadCount = parseInt(obj['uxNumberOfItems']?.val);
+                const listEndRef = obj['xListEnd']?.ref;
                 if ((threadCount <= 0) || !listEndRef) {
                     resolve();
                     return;
                 }
                 try {
                     const listEndObj = await this.getVarChildrenObj(listEndRef, 'xListEnd') || {};
-                    let curRef = listEndObj['pxPrevious-ref'];
+                    let curRef = listEndObj['pxPrevious']?.ref;
                     for (let thIx = 0; thIx < threadCount; thIx++) {
                         const element = await this.getVarChildrenObj(curRef, 'pxPrevious') || {};
-                        const threadId = parseInt(element['pvOwner-val']);
+                        const threadId = parseInt(element['pvOwner']?.val);
                         const thInfo = await this.getExprValChildrenObj(`((TCB_t*)${RTOSCommon.hexFormat(threadId)})`, frameId);
                         const threadRunning = (threadId === this.curThreadAddr);
-                        const tmpThName = await this.getExprVal('(char *)' + thInfo['pcTaskName-exp'], frameId) || '';
+                        const tmpThName = await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId) || '';
                         const match = tmpThName.match(/"([^*]*)"$/);
                         const thName = match ? match[1] : tmpThName;
                         const stackInfo = await this.getStackInfo(thInfo, 0xA5);
@@ -279,7 +279,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                             display[DisplayFieldNames[x]] = { text, value };
                         };
 
-                        mySetter(DisplayFields.ID, thInfo['uxTCBNumber-val'] || '??');
+                        mySetter(DisplayFields.ID, thInfo['uxTCBNumber']?.val || '??');
                         mySetter(DisplayFields.Address, RTOSCommon.hexFormat(threadId));
                         mySetter(DisplayFields.TaskName, thName);
                         mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : state);
@@ -287,11 +287,11 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
                         mySetter(DisplayFields.StackEnd, stackInfo.stackEnd ? RTOSCommon.hexFormat(stackInfo.stackEnd) : '0x????????');
 
-                        if (thInfo['uxBasePriority-val']) {
-                            mySetter(DisplayFields.Priority, `${thInfo['uxPriority-val']},${thInfo['uxBasePriority-val']}`);
+                        if (thInfo['uxBasePriority']?.val) {
+                            mySetter(DisplayFields.Priority, `${thInfo['uxPriority']?.val},${thInfo['uxBasePriority']?.val}`);
                         }
                         else {
-                            mySetter(DisplayFields.Priority, `${thInfo['uxPriority-val']}`);
+                            mySetter(DisplayFields.Priority, `${thInfo['uxPriority']?.val}`);
                         }
 
                         const func = (x: any) => x === undefined ? '???' : x.toString();
@@ -299,8 +299,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         mySetter(DisplayFields.StackUsed, func(stackInfo.stackUsed));
                         mySetter(DisplayFields.StackFree, func(stackInfo.stackFree));
                         mySetter(DisplayFields.StackPeak, func(stackInfo.stackPeak));
-                        if (thInfo['ulRunTimeCounter-val'] && this.ulTotalRunTimeVal) {
-                            const tmp = ((parseInt(thInfo['ulRunTimeCounter-val']) / this.ulTotalRunTimeVal) * 100).toFixed(2);
+                        if (thInfo['ulRunTimeCounter']?.val && this.ulTotalRunTimeVal) {
+                            const tmp = ((parseInt(thInfo['ulRunTimeCounter']?.val) / this.ulTotalRunTimeVal) * 100).toFixed(2);
                             mySetter(DisplayFields.Runtime, tmp.padStart(5, '0') + '%');
                         } else {
                             mySetter(DisplayFields.Runtime, '??.??%');
@@ -310,7 +310,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         };
                         this.foundThreads.push(thread);
                         this.createHmlHelp(thread, thInfo);
-                        curRef = element['pxPrevious-ref'];
+                        curRef = element['pxPrevious']?.ref;
                     }
                     resolve();
                 }
@@ -324,9 +324,9 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     }
 
     protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number) {
-        const pxStack = thInfo['pxStack-val'];
-        const pxTopOfStack = thInfo['pxTopOfStack-val'];
-        const pxEndOfStack = thInfo['pxEndOfStack-val'];
+        const pxStack = thInfo['pxStack']?.val;
+        const pxTopOfStack = thInfo['pxTopOfStack']?.val;
+        const pxEndOfStack = thInfo['pxEndOfStack']?.val;
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)

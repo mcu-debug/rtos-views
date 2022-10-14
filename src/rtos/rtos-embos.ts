@@ -111,7 +111,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     return `<strong>${text}</strong>`;
                 }
 
-                if (!thInfo['sName-val']) {
+                if (!thInfo['sName']?.val) {
                     ret += `Thread name missing: Enable ${strong('OS_SUPPORT_TRACKNAME')} or use library mode that enables it and
                     use ${strong('sName')} parameter on task creation in FW<br><br>`;
                 }
@@ -152,7 +152,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     let isRunning: any = '0';
 
                     if (this.OSGlobalVal.hasOwnProperty('IsRunning-val')) {
-                        isRunning = this.OSGlobalVal['IsRunning-val'];
+                        isRunning = this.OSGlobalVal['IsRunning']?.val;
                     }
                     else {
                         /* older embOS versions do not have IsRunning struct member */
@@ -160,10 +160,10 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     }
 
                     if (undefined !== isRunning && !isNaN(isRunning) && (0 !== parseInt(isRunning))) {
-                        const taskList = this.OSGlobalVal['pTask-val'];
+                        const taskList = this.OSGlobalVal['pTask']?.val;
                         if (undefined !== taskList && (0 !== parseInt(taskList))) {
-                            if (this.OSGlobalVal['pCurrentTask-val']) {
-                                this.pCurrentTaskVal = parseInt(this.OSGlobalVal['pCurrentTask-val']);
+                            if (this.OSGlobalVal['pCurrentTask']?.val) {
+                                this.pCurrentTaskVal = parseInt(this.OSGlobalVal['pCurrentTask']?.val);
                             }
                             else {
                                 this.pCurrentTaskVal = Number.MAX_SAFE_INTEGER;
@@ -224,12 +224,12 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                         let thName = '???';
 
                         if (curTaskObj.hasOwnProperty('sName-val')) {
-                            const matchName = curTaskObj['sName-val'].match(/"([^*]*)"$/);
-                            thName = matchName ? matchName[1] : curTaskObj['sName-val'];
+                            const matchName = curTaskObj['sName']?.val.match(/"([^*]*)"$/);
+                            thName = matchName ? matchName[1] : curTaskObj['sName']?.val;
                         }
                         else if (curTaskObj.hasOwnProperty('Name-val')) { /* older embOS versions used Name */
-                            const matchName = curTaskObj['Name-val'].match(/"([^*]*)"$/);
-                            thName = matchName ? matchName[1] : curTaskObj['Name-val'];
+                            const matchName = curTaskObj['Name']?.val.match(/"([^*]*)"$/);
+                            thName = matchName ? matchName[1] : curTaskObj['Name']?.val;
                         }
 
                         const threadRunning = (thAddress === this.pCurrentTaskVal);
@@ -249,7 +249,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                             return parseInt(hexNumberString).toString();
                         };
 
-                        const prioString = `${myHexNumStrCon(curTaskObj['Priority-val'])},${myHexNumStrCon(curTaskObj['BasePrio-val'])}`;
+                        const prioString = `${myHexNumStrCon(curTaskObj['Priority']?.val)},${myHexNumStrCon(curTaskObj['BasePrio']?.val)}`;
                         mySetter(DisplayFields.Priority, prioString);
 
                         if ((stackInfo.stackUsed !== undefined) && (stackInfo.stackSize !== undefined)) {
@@ -276,9 +276,9 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                         this.foundThreads.push(thread);
                         this.createHmlHelp(thread, curTaskObj);
 
-                        thAddress = parseInt(curTaskObj['pNext-val']);
+                        thAddress = parseInt(curTaskObj['pNext']?.val);
                         if (0 !== thAddress) {
-                            const nextThreadObj = await this.getVarChildrenObj(curTaskObj['pNext-ref'], 'pNext');
+                            const nextThreadObj = await this.getVarChildrenObj(curTaskObj['pNext']?.ref, 'pNext');
                             curTaskObj = nextThreadObj || {};
                             threadCount++;
                         }
@@ -304,7 +304,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     }
 
     protected async analyzeTaskState(curTaskObj: RTOSCommon.RTOSStrToValueMap, objectNameEntries: Map<number, string>): Promise<TaskState> {
-        const state = parseInt(curTaskObj['Stat-val']);
+        const state = parseInt(curTaskObj['Stat']?.val);
 
         const suspendCount = (state & OS_TASK_STATE_SUSPEND_MASK);
         if (suspendCount !== 0) {
@@ -315,7 +315,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         let TimeoutActive = false;
 
         if (state & OS_TASK_STATE_TIMEOUT_ACTIVE) {
-            pendTimeout = parseInt(curTaskObj['Timeout-val']);
+            pendTimeout = parseInt(curTaskObj['Timeout']?.val);
             TimeoutActive = true;
         }
 
@@ -334,9 +334,9 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 const resultState = new TaskPending();
                 resultState.addEventType(maskedState);
 
-                if (curTaskObj['EventMask-val']) {
-                    const eventMask = parseInt(curTaskObj['EventMask-val']); // Waiting bits
-                    const event = parseInt(curTaskObj['Events-val']); // Set bits
+                if (curTaskObj['EventMask']?.val) {
+                    const eventMask = parseInt(curTaskObj['EventMask']?.val); // Waiting bits
+                    const event = parseInt(curTaskObj['Events']?.val); // Set bits
                     const eventInfo: EventInfo = { address: eventMask, eventType: state, name: `mask ${eventMask} - set ${event}` };
 
                     if (TimeoutActive) {
@@ -352,12 +352,12 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 const resultState = new TaskPending();
                 resultState.addEventType(maskedState);
 
-                if (curTaskObj['pWaitList-val']) {
-                    const waitListEntryAddress = parseInt(curTaskObj['pWaitList-val']);
+                if (curTaskObj['pWaitList']?.val) {
+                    const waitListEntryAddress = parseInt(curTaskObj['pWaitList']?.val);
 
                     if (waitListEntryAddress !== 0) {
-                        const waitListEntry = await this.getVarChildrenObj(curTaskObj['pWaitList-ref'], 'pWaitList');
-                        const waitObject = parseInt(waitListEntry ? waitListEntry['pWaitObj-val'] : '');
+                        const waitListEntry = await this.getVarChildrenObj(curTaskObj['pWaitList']?.ref, 'pWaitList');
+                        const waitObject = parseInt(waitListEntry ? waitListEntry['pWaitObj']?.val : '');
                         const eventInfo: EventInfo = { address: waitObject, eventType: state };
 
                         if (objectNameEntries.has(waitObject)) {
@@ -378,18 +378,18 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     }
 
     protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number): Promise<RTOSCommon.RTOSStackInfo> {
-        const TopOfStack = thInfo['pStack-val'];
+        const TopOfStack = thInfo['pStack']?.val;
 
         /* only available with #if (OS_SUPPORT_STACKCHECK != 0) || (OS_SUPPORT_MPU != 0) (optional) */
-        const StackSize = thInfo['StackSize-val'];
+        const StackSize = thInfo['StackSize']?.val;
         let EndOfStack: any;
 
         if (thInfo.hasOwnProperty('pStackBase-val')) {
-            EndOfStack = thInfo['pStackBase-val'];
+            EndOfStack = thInfo['pStackBase']?.val;
         }
         else {
             /* older embOS versions used pStackBot instead of pStackBase */
-            EndOfStack = thInfo['pStackBot-val'];
+            EndOfStack = thInfo['pStackBot']?.val;
         }
 
         let Stack = 0;
@@ -465,23 +465,23 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
             if (0 !== parseInt(this.OSGlobalpObjNameRoot.value || '')) {
                 let entry: RTOSCommon.RTOSStrToValueMap | null = await this.OSGlobalpObjNameRoot.getVarChildrenObj(frameId);
                 while (entry) {
-                    const objectId = parseInt(entry['pOSObjID-val']);
+                    const objectId = parseInt(entry['pOSObjID']?.val);
                     if (!objectId || objectId === 0) {
                         break;
                     }
 
-                    const matchName = entry['sName-val'].match(/"([^*]*)"$/);
-                    const objectName = matchName ? matchName[1] : entry['sName-val'];
+                    const matchName = entry['sName']?.val.match(/"([^*]*)"$/);
+                    const objectName = matchName ? matchName[1] : entry['sName']?.val;
 
                     if (objectName && !result.has(objectId)) {
                         result.set(objectId, objectName);
                     }
 
-                    const nextEntryAddr = parseInt(entry['pNext-val']);
+                    const nextEntryAddr = parseInt(entry['pNext']?.val);
                     if (nextEntryAddr === 0) {
                         break;
                     } else {
-                        entry = await this.getVarChildrenObj(entry['pNext-ref'], 'pNext');
+                        entry = await this.getVarChildrenObj(entry['pNext']?.ref, 'pNext');
                     }
                 }
             }

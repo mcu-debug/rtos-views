@@ -116,10 +116,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     return `<strong>${text}</strong>`;
                 }
 
-                if (!thInfo['OSTCBTaskName-val']) {
+                if (!thInfo['OSTCBTaskName']?.val) {
                     ret += `Thread name missing: Enable macro ${strong('OS_TASK_NAME_EN')} and use ${strong('OSTaskNameSet')} in FW<br><br>`;
                 }
-                if (!thInfo['OSTCBId-val'] || !th.stackInfo.stackSize) {
+                if (!thInfo['OSTCBId']?.val || !th.stackInfo.stackSize) {
                     ret += `Thread ID & Stack Size & Peak missing: Enable macro ${strong('OS_TASK_CREATE_EXT_EN')} and`
                         + `use ${strong('OSTaskCreateExt')} in FW<br><br>`;
                 }
@@ -231,11 +231,11 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     let threadCount = 1;
 
                     do {
-                        const threadId = curTaskObj['OSTCBId-val'];
+                        const threadId = curTaskObj['OSTCBId']?.val;
 
                         let thName = '???';
                         if (curTaskObj['OSTCBTaskName-exp']) {
-                            const tmpThName = await this.getExprVal('(char *)' + curTaskObj['OSTCBTaskName-exp'], frameId) || '';
+                            const tmpThName = await this.getExprVal('(char *)' + curTaskObj['OSTCBTaskName']?.exp, frameId) || '';
                             const matchName = tmpThName.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : tmpThName;
                         }
@@ -255,7 +255,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         mySetter(DisplayFields.Address, RTOSCommon.hexFormat(thAddress));
                         mySetter(DisplayFields.TaskName, thName);
                         mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : thState, thStateObject.fullData());
-                        mySetter(DisplayFields.Priority, parseInt(curTaskObj['OSTCBPrio-val']).toString());
+                        mySetter(DisplayFields.Priority, parseInt(curTaskObj['OSTCBPrio']?.val).toString());
 
                         if ((stackInfo.stackUsed !== undefined) && (stackInfo.stackSize !== undefined)) {
                             const stackPercentVal = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
@@ -281,9 +281,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         this.foundThreads.push(thread);
                         this.createHmlHelp(thread, curTaskObj);
 
-                        thAddress = parseInt(curTaskObj['OSTCBNext-val']);
+                        thAddress = parseInt(curTaskObj['OSTCBNext']?.val);
                         if (0 !== thAddress) {
-                            const nextThreadObj = await this.getVarChildrenObj(curTaskObj['OSTCBNext-ref'], 'OSTCBNext');
+                            const nextThreadObj = await this.getVarChildrenObj(curTaskObj['OSTCBNext']?.ref, 'OSTCBNext');
                             curTaskObj = nextThreadObj || {};
                             threadCount++;
                         }
@@ -307,10 +307,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     }
 
     protected async getEventInfo(address: number, eventObject: RTOSCommon.RTOSStrToValueMap, frameId: number): Promise<EventInfo> {
-        const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType-val']) };
+        const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType']?.val) };
 
-        if (eventObject['OSEventName-val']) {
-            const value = eventObject['OSEventName-val'];
+        if (eventObject['OSEventName']?.val) {
+            const value = eventObject['OSEventName']?.val;
             const matchName = value.match(/"(.*)"$/);
             eventInfo.name = matchName ? matchName[1] : value;
         }
@@ -333,7 +333,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     }
 
     protected async analyzeTaskState(threadAddr: number, curTaskObj: any, flagPendMap: Map<number, FlagGroup[]>, frameId: number): Promise<TaskState> {
-        const state = parseInt(curTaskObj['OSTCBStat-val']);
+        const state = parseInt(curTaskObj['OSTCBStat']?.val);
         switch (state) {
             case OsTaskState.READY: return new TaskReady();
             case OsTaskState.SUSPENDED: return new TaskSuspended();
@@ -344,18 +344,18 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         resultState.addEventType(getEventTypeForTaskState(candidateState));
                     }
                 });
-                if (curTaskObj['OSTCBEventPtr-val']) {
-                    const eventAddress = parseInt(curTaskObj['OSTCBEventPtr-val']);
+                if (curTaskObj['OSTCBEventPtr']?.val) {
+                    const eventAddress = parseInt(curTaskObj['OSTCBEventPtr']?.val);
                     if (eventAddress !== 0) {
-                        const event = await this.getVarChildrenObj(curTaskObj['OSTCBEventPtr-ref'], 'OSTCBEventPtr');
+                        const event = await this.getVarChildrenObj(curTaskObj['OSTCBEventPtr']?.ref, 'OSTCBEventPtr');
                         if (event) {
                             const eventInfo = await this.getEventInfo(eventAddress, event, frameId);
                             resultState.addEvent(eventInfo);
                         }
                     }
                 }
-                if (curTaskObj['OSTCBEventMultiPtr-val']) {
-                    const eventMultiBaseAddress = parseInt(curTaskObj['OSTCBEventMultiPtr-val']);
+                if (curTaskObj['OSTCBEventMultiPtr']?.val) {
+                    const eventMultiBaseAddress = parseInt(curTaskObj['OSTCBEventMultiPtr']?.val);
                     if (eventMultiBaseAddress !== 0) {
                         (await this.readEventArray(eventMultiBaseAddress, frameId)).forEach(
                             (eventInfo) => resultState.addEvent(eventInfo)
@@ -379,19 +379,19 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
             if (flagGroupPtr.variablesReference > 0 && flagGroupPtr.evaluateName) {
                 const osFlagGrp = await this.getVarChildrenObj(flagGroupPtr.variablesReference, flagGroupPtr.name);
                 // Check if we are looking at an initialized flag group
-                if (osFlagGrp && parseInt(osFlagGrp['OSFlagType-val']) === OsEventType.Flag) {
+                if (osFlagGrp && parseInt(osFlagGrp['OSFlagType']?.val) === OsEventType.Flag) {
                     const groupAddr = parseInt(await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId) || '');
                     const flagGroup: FlagGroup = { address: groupAddr };
-                    const reprValue = osFlagGrp['OSFlagName-val'];
+                    const reprValue = osFlagGrp['OSFlagName']?.val;
                     if (reprValue) {
                         const matchName = reprValue.match(/"(.*)"$/);
                         flagGroup.name = matchName ? matchName[1] : reprValue;
                     }
 
                     // Follow the linked list of flag group nodes. The cast is safe here because we checked OSFlagType before
-                    let flagNode = await this.getExprValChildrenObj(`(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList-exp']})`, frameId);
+                    let flagNode = await this.getExprValChildrenObj(`(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList']?.exp})`, frameId);
                     while (flagNode) {
-                        const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB-val'] || '');
+                        const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB']?.val || '');
                         if (!waitingTcbAddr || waitingTcbAddr === 0) {
                             break;
                         }
@@ -401,7 +401,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         }
                         result.get(waitingTcbAddr)?.push(flagGroup);
 
-                        const nextFlagNodeAddr = parseInt(flagNode['OSFlagNodeNext-val']);
+                        const nextFlagNodeAddr = parseInt(flagNode['OSFlagNodeNext']?.val);
                         if (nextFlagNodeAddr === 0) {
                             break;
                         } else {
@@ -416,11 +416,11 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     }
 
     protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, frameId: number) {
-        const TopOfStack = thInfo['OSTCBStkPtr-val'];
+        const TopOfStack = thInfo['OSTCBStkPtr']?.val;
 
         /* only available with OS_TASK_CREATE_EXT_EN (optional) */
-        const EndOfStack = thInfo['OSTCBStkBottom-val'];
-        const StackSize = thInfo['OSTCBStkSize-val'];
+        const EndOfStack = thInfo['OSTCBStkBottom']?.val;
+        const StackSize = thInfo['OSTCBStkSize']?.val;
 
         let Stack = 0;
         if (EndOfStack && StackSize) {

@@ -15,7 +15,13 @@ export interface RTOSStackInfo {
     bytes?: Uint8Array;
 }
 
-export type RTOSStrToValueMap = { [key: string]: any };
+export interface VarObjVal {
+    val: string;                    // The value
+    ref: number;                    // Variable reference. Technically, this is not a number, it is handle
+    exp: string | undefined;        // This is the expression that represents the value
+}
+
+export type RTOSStrToValueMap = { [key: string]: VarObjVal };
 
 // It is a bitfield because Link and Collapse are oddballs and do not imply right/left/center justified
 // Please follow the conventions so that the look and feel is consistent across RTOSes contributed by
@@ -433,9 +439,12 @@ export class RTOSVarHelper {
     public static varsToObj(vars: DebugProtocol.Variable[]): RTOSStrToValueMap {
         const obj: RTOSStrToValueMap = {};
         for (const v of vars) {
-            obj[v.name + '-val'] = v.value;
-            obj[v.name + '-ref'] = v.variablesReference;
-            obj[v.name + '-exp'] = v.evaluateName;
+            const tmp: VarObjVal = {
+                val: v.value,
+                ref: v.variablesReference,
+                exp: v.evaluateName
+            };
+            obj[v.name] = tmp;
         }
         return obj;
     }
