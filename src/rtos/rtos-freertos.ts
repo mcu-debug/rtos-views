@@ -42,10 +42,6 @@ FreeRTOSItems[DisplayFields[DisplayFields.StackPeak]] = { width: 2, headerRow1: 
 FreeRTOSItems[DisplayFields[DisplayFields.Runtime]] = { width: 2, headerRow1: '', headerRow2: 'Runtime', colType: numType };
 const DisplayFieldNames: string[] = Object.keys(FreeRTOSItems);
 
-function isNullOrUndefined(x: any) {
-    return (x === undefined) || (x === null);
-}
-
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -62,8 +58,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal: number = 0;
 
-    private stale: boolean | undefined;
-    private curThreadAddr: number | undefined;
+    private stale: boolean = true;
+    private curThreadAddr: number = 0;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private timeInfo: string = '';
@@ -109,7 +105,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: any) {
+    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
@@ -266,21 +262,21 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     return;
                 }
                 try {
-                    const listEndObj: any = await this.getVarChildrenObj(listEndRef, 'xListEnd');
+                    const listEndObj = await this.getVarChildrenObj(listEndRef, 'xListEnd') || {};
                     let curRef = listEndObj['pxPrevious-ref'];
                     for (let thIx = 0; thIx < threadCount; thIx++) {
-                        const element: any = await this.getVarChildrenObj(curRef, 'pxPrevious');
+                        const element = await this.getVarChildrenObj(curRef, 'pxPrevious') || {};
                         const threadId = parseInt(element['pvOwner-val']);
-                        const thInfo: any = await this.getExprValChildrenObj(`((TCB_t*)${RTOSCommon.hexFormat(threadId)})`, frameId);
+                        const thInfo = await this.getExprValChildrenObj(`((TCB_t*)${RTOSCommon.hexFormat(threadId)})`, frameId);
                         const threadRunning = (threadId === this.curThreadAddr);
-                        const tmpThName: any = await this.getExprVal('(char *)' + thInfo['pcTaskName-exp'], frameId);
+                        const tmpThName = await this.getExprVal('(char *)' + thInfo['pcTaskName-exp'], frameId) || '';
                         const match = tmpThName.match(/"([^*]*)"$/);
                         const thName = match ? match[1] : tmpThName;
                         const stackInfo = await this.getStackInfo(thInfo, 0xA5);
                         // This is the order we want stuff in
                         const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
                         const mySetter = (x: DisplayFields, text: string, value?: any) => {
-                            display[DisplayFieldNames[x]] = {text, value};
+                            display[DisplayFieldNames[x]] = { text, value };
                         };
 
                         mySetter(DisplayFields.ID, thInfo['uxTCBNumber-val'] || '??');
@@ -327,7 +323,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getStackInfo(thInfo: any, waterMark: number) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number) {
         const pxStack = thInfo['pxStack-val'];
         const pxTopOfStack = thInfo['pxTopOfStack-val'];
         const pxEndOfStack = thInfo['pxEndOfStack-val'];
@@ -377,7 +373,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         return stackInfo;
     }
 
-    public lastValidHtmlContent: RTOSCommon.HtmlInfo = {html: '', css: ''};
+    public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
     public getHTML(): RTOSCommon.HtmlInfo {
         const htmlContent: RTOSCommon.HtmlInfo = {
             html: '', css: ''

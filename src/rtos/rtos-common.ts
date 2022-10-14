@@ -15,17 +15,19 @@ export interface RTOSStackInfo {
     bytes?: Uint8Array;
 }
 
+export type RTOSStrToValueMap = { [key: string]: any };
+
 // It is a bitfield because Link and Collapse are oddballs and do not imply right/left/center justified
 // Please follow the conventions so that the look and feel is consistent across RTOSes contributed by
 // multiple folks
 // Note: The table we produce should still look good when expanding/shrinking in the horizontal direction.. Things
 // should not run into each other. Not easy, but do your best and test it
 export enum ColTypeEnum {
-    colTypeNormal      = 0,        // Will be left justified. Use for Text fields, fixed width hex values, etc.
-    colTypePercentage  = 1 << 0,   // Will be centered with a % bar
-    colTypeNumeric     = 1 << 1,   // Will be right justified
-    colTypeLink        = 1 << 2,   // TODO: mark it as a link to do something additional. Not totally functional
-    colTypeCollapse    = 1 << 3    // Items will be collapsible
+    colTypeNormal = 0,        // Will be left justified. Use for Text fields, fixed width hex values, etc.
+    colTypePercentage = 1 << 0,   // Will be centered with a % bar
+    colTypeNumeric = 1 << 1,   // Will be right justified
+    colTypeLink = 1 << 2,   // TODO: mark it as a link to do something additional. Not totally functional
+    colTypeCollapse = 1 << 3    // Items will be collapsible
 }
 
 export interface DisplayColumnItem {
@@ -189,8 +191,8 @@ export abstract class RTOSBase {
         });
     }
 
-    protected getVarChildrenObj(varRef: number, dbg: string): Promise<object | null> {
-        return new Promise<object | null>((resolve, reject) => {
+    protected getVarChildrenObj(varRef: number, dbg: string): Promise<RTOSStrToValueMap | null> {
+        return new Promise<RTOSStrToValueMap | null>((resolve, reject) => {
             if ((varRef === undefined) || (varRef === 0)) {
                 resolve(null);
                 return;
@@ -266,8 +268,8 @@ export abstract class RTOSBase {
         return exprVar.getVarChildren(frameId);
     }
 
-    protected getExprValChildrenObj(expr: string, frameId: number): Promise<object> {
-        return new Promise<object>(async (resolve, reject) => {
+    protected getExprValChildrenObj(expr: string, frameId: number): Promise<RTOSStrToValueMap | any> {
+        return new Promise<RTOSStrToValueMap | any>(async (resolve, reject) => {
             try {
                 const vars = await this.getExprValChildren(expr, frameId);
                 const obj = RTOSVarHelper.varsToObj(vars);
@@ -428,8 +430,8 @@ export class RTOSVarHelper {
     constructor(public expression: string, public rtos: RTOSBase) {
     }
 
-    public static varsToObj(vars: DebugProtocol.Variable[]) {
-        const obj: any = {};
+    public static varsToObj(vars: DebugProtocol.Variable[]): RTOSStrToValueMap {
+        const obj: RTOSStrToValueMap = {};
         for (const v of vars) {
             obj[v.name + '-val'] = v.value;
             obj[v.name + '-ref'] = v.variablesReference;
@@ -515,8 +517,8 @@ export class RTOSVarHelper {
         });
     }
 
-    public getVarChildrenObj(useFrameId: number): Promise<object> {
-        return new Promise<object>((resolve, reject) => {
+    public getVarChildrenObj(useFrameId: number): Promise<RTOSStrToValueMap> {
+        return new Promise<RTOSStrToValueMap>((resolve, reject) => {
             this.getVarChildren(useFrameId).then((vars) => {
                 const obj = RTOSVarHelper.varsToObj(vars);
                 resolve(obj);
@@ -622,5 +624,5 @@ export function toStringDecHexOctBin(val: number/* should be an integer*/): stri
         str = str.slice(0, -8);
     }
     ret += `\nbin: ${tmp}`;
-    return ret ;
+    return ret;
 }

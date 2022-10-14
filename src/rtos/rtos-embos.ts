@@ -46,11 +46,11 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     private OSGlobalpTask: RTOSCommon.RTOSVarHelperMaybe; /* start of task linked list */
     private OSGlobalpObjNameRoot: RTOSCommon.RTOSVarHelperMaybe; /* start of object name linked list */
 
-    private pCurrentTaskVal: number | undefined;
+    private pCurrentTaskVal: number = 0;
 
     private taskCount: number = 0;
 
-    private stale: boolean | undefined;
+    private stale: boolean = true;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private timeInfo: string = '';
@@ -102,7 +102,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: object | any) {
+    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
@@ -213,7 +213,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 return;
             }
 
-            taskListEntry.getVarChildrenObj(frameId).then(async (obj: any) => {
+            taskListEntry.getVarChildrenObj(frameId).then(async (obj: RTOSCommon.RTOSStrToValueMap) => {
                 try {
                     let curTaskObj = obj;
                     let thAddress = parseInt(taskListEntry.value || '');
@@ -279,7 +279,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                         thAddress = parseInt(curTaskObj['pNext-val']);
                         if (0 !== thAddress) {
                             const nextThreadObj = await this.getVarChildrenObj(curTaskObj['pNext-ref'], 'pNext');
-                            curTaskObj = nextThreadObj;
+                            curTaskObj = nextThreadObj || {};
                             threadCount++;
                         }
 
@@ -303,7 +303,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async analyzeTaskState(curTaskObj: any, objectNameEntries: Map<number, string>): Promise<TaskState> {
+    protected async analyzeTaskState(curTaskObj: RTOSCommon.RTOSStrToValueMap, objectNameEntries: Map<number, string>): Promise<TaskState> {
         const state = parseInt(curTaskObj['Stat-val']);
 
         const suspendCount = (state & OS_TASK_STATE_SUSPEND_MASK);
@@ -356,7 +356,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     const waitListEntryAddress = parseInt(curTaskObj['pWaitList-val']);
 
                     if (waitListEntryAddress !== 0) {
-                        const waitListEntry: any = await this.getVarChildrenObj(curTaskObj['pWaitList-ref'], 'pWaitList');
+                        const waitListEntry = await this.getVarChildrenObj(curTaskObj['pWaitList-ref'], 'pWaitList');
                         const waitObject = parseInt(waitListEntry ? waitListEntry['pWaitObj-val'] : '');
                         const eventInfo: EventInfo = { address: waitObject, eventType: state };
 
@@ -377,7 +377,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected async getStackInfo(thInfo: any, stackPattern: number): Promise<RTOSCommon.RTOSStackInfo> {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number): Promise<RTOSCommon.RTOSStackInfo> {
         const TopOfStack = thInfo['pStack-val'];
 
         /* only available with #if (OS_SUPPORT_STACKCHECK != 0) || (OS_SUPPORT_MPU != 0) (optional) */
@@ -463,7 +463,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
             /* Follow the linked list of object identifier nodes */
             if (0 !== parseInt(this.OSGlobalpObjNameRoot.value || '')) {
-                let entry: any = await this.OSGlobalpObjNameRoot.getVarChildrenObj(frameId);
+                let entry: RTOSCommon.RTOSStrToValueMap | null = await this.OSGlobalpObjNameRoot.getVarChildrenObj(frameId);
                 while (entry) {
                     const objectId = parseInt(entry['pOSObjID-val']);
                     if (!objectId || objectId === 0) {
@@ -611,7 +611,10 @@ class TaskPending extends TaskState {
 
     public addEvent(event: EventInfo) {
         this.addEventType(event.eventType);
-        this.pendingInfo.get(event?.eventType)?.push(event);
+        const val = this.pendingInfo.get(event.eventType);
+        if (val) {
+            val.push(event);
+        }
     }
 
     public addEventType(eventType: OsTaskPendingState) {

@@ -17,8 +17,8 @@ enum DisplayFields {
 }
 
 const RTOSUCOS2Items: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
-RTOSUCOS2Items[DisplayFields[DisplayFields.ID]] = { width: 1, headerRow1: '', headerRow2: 'ID', colType: RTOSCommon.ColTypeEnum.colTypeNumeric};
-RTOSUCOS2Items[DisplayFields[DisplayFields.Address]] = { width: 2, headerRow1: '', headerRow2: 'Address',  colGapBefore: 1 };
+RTOSUCOS2Items[DisplayFields[DisplayFields.ID]] = { width: 1, headerRow1: '', headerRow2: 'ID', colType: RTOSCommon.ColTypeEnum.colTypeNumeric };
+RTOSUCOS2Items[DisplayFields[DisplayFields.Address]] = { width: 2, headerRow1: '', headerRow2: 'Address', colGapBefore: 1 };
 RTOSUCOS2Items[DisplayFields[DisplayFields.TaskName]] = { width: 4, headerRow1: '', headerRow2: 'Name', colGapBefore: 1 };
 RTOSUCOS2Items[DisplayFields[DisplayFields.Status]] = {
     width: 4, headerRow1: 'Thread', headerRow2: 'Status', colType: RTOSCommon.ColTypeEnum.colTypeCollapse
@@ -107,7 +107,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: any) {
+    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
@@ -223,7 +223,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 return;
             }
 
-            tcbListEntry.getVarChildrenObj(frameId).then(async (obj: any) => {
+            tcbListEntry.getVarChildrenObj(frameId).then(async (obj: RTOSCommon.RTOSStrToValueMap) => {
                 try {
                     let curTaskObj = obj;
                     let thAddress = parseInt(tcbListEntry?.value || '');
@@ -284,7 +284,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         thAddress = parseInt(curTaskObj['OSTCBNext-val']);
                         if (0 !== thAddress) {
                             const nextThreadObj = await this.getVarChildrenObj(curTaskObj['OSTCBNext-ref'], 'OSTCBNext');
-                            curTaskObj = nextThreadObj;
+                            curTaskObj = nextThreadObj || {};
                             threadCount++;
                         }
 
@@ -306,7 +306,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getEventInfo(address: number, eventObject: any, frameId: number): Promise<EventInfo> {
+    protected async getEventInfo(address: number, eventObject: RTOSCommon.RTOSStrToValueMap, frameId: number): Promise<EventInfo> {
         const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType-val']) };
 
         if (eventObject['OSEventName-val']) {
@@ -348,8 +348,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     const eventAddress = parseInt(curTaskObj['OSTCBEventPtr-val']);
                     if (eventAddress !== 0) {
                         const event = await this.getVarChildrenObj(curTaskObj['OSTCBEventPtr-ref'], 'OSTCBEventPtr');
-                        const eventInfo = await this.getEventInfo(eventAddress, event, frameId);
-                        resultState.addEvent(eventInfo);
+                        if (event) {
+                            const eventInfo = await this.getEventInfo(eventAddress, event, frameId);
+                            resultState.addEvent(eventInfo);
+                        }
                     }
                 }
                 if (curTaskObj['OSTCBEventMultiPtr-val']) {
@@ -375,9 +377,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         const result: Map<number, FlagGroup[]> = new Map();
         for (const flagGroupPtr of osFlagTable) {
             if (flagGroupPtr.variablesReference > 0 && flagGroupPtr.evaluateName) {
-                const osFlagGrp: any = await this.getVarChildrenObj(flagGroupPtr.variablesReference, flagGroupPtr.name);
+                const osFlagGrp = await this.getVarChildrenObj(flagGroupPtr.variablesReference, flagGroupPtr.name);
                 // Check if we are looking at an initialized flag group
-                if (parseInt(osFlagGrp['OSFlagType-val']) === OsEventType.Flag) {
+                if (osFlagGrp && parseInt(osFlagGrp['OSFlagType-val']) === OsEventType.Flag) {
                     const groupAddr = parseInt(await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId) || '');
                     const flagGroup: FlagGroup = { address: groupAddr };
                     const reprValue = osFlagGrp['OSFlagName-val'];
@@ -387,7 +389,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     }
 
                     // Follow the linked list of flag group nodes. The cast is safe here because we checked OSFlagType before
-                    let flagNode: any = await this.getExprValChildrenObj(`(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList-exp']})`, frameId);
+                    let flagNode = await this.getExprValChildrenObj(`(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList-exp']})`, frameId);
                     while (flagNode) {
                         const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB-val'] || '');
                         if (!waitingTcbAddr || waitingTcbAddr === 0) {
@@ -413,7 +415,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         return result;
     }
 
-    protected async getStackInfo(thInfo: any, stackPattern: number, frameId: number) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, frameId: number) {
         const TopOfStack = thInfo['OSTCBStkPtr-val'];
 
         /* only available with OS_TASK_CREATE_EXT_EN (optional) */
