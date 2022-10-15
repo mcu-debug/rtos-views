@@ -126,7 +126,11 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 try {
                     this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '(uint32_t) &ch_system.reglist', false);
                     this.smp = true;
-                } catch (e) {
+                }
+                catch (e) {
+                    if (e instanceof RTOSCommon.ShouldRetry) {
+                        throw e;
+                    }
                     this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '(uint32_t) &ch0.reglist', false);
                 }
 
