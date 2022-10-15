@@ -161,8 +161,8 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     return `<strong>${text}</strong>`;
                 }
 
-                if (getNumberNVL(thread['wabase']?.val, 0) == 0) {
-                    ret += `Thread stack debug information is not enabled: to enable set ${strong('CH_DBG_ENABLE_STACK_CHECK')} and ${strong('CH_DBG_ENABLE_STACK_CHECK')} to ${strong('TRUE')} in chconf.h<br><br>`;
+                if (!getNumberNVL(thread['wabase']?.val, 0)) {
+                    ret += `Thread stack debug information is not enabled: to enable set ${strong('CH_DBG_ENABLE_STACK_CHECK')} and ${strong('CH_DBG_FILL_THREADS')} to ${strong('TRUE')} in chconf.h<br><br>`;
                 }
 
                 if ((!threadStats['n']?.val) || (!threadStats['worst']?.val) || (!threadStats['cumulative']?.val)) {
