@@ -15,9 +15,8 @@ enum DisplayFields {
     STATS_N,
     STATS_WORST,
     STATS_CUMULATIVE,
-    STACK_TOP,
-    STACK_END,
-    STACK_MIN_FREE
+    STACK_CURRENT_USAGE,
+    STACK_PEAK_USAGE
 }
 
 enum chThreadState {
@@ -53,9 +52,8 @@ ChibiOSItems[DisplayFields[DisplayFields.WTOBJP]] = { width: 4, headerRow1: 'Wai
 ChibiOSItems[DisplayFields[DisplayFields.STATS_N]] = { width: 4, headerRow1: 'Stats', headerRow2: 'Switches', colType: colNumType };
 ChibiOSItems[DisplayFields[DisplayFields.STATS_WORST]] = { width: 4, headerRow1: '', headerRow2: 'Worst Path', colType: colNumType };
 ChibiOSItems[DisplayFields[DisplayFields.STATS_CUMULATIVE]] = { width: 4, headerRow1: '', headerRow2: 'Cumulative Time', colType: colNumType };
-ChibiOSItems[DisplayFields[DisplayFields.STACK_TOP]] = { width: 4, headerRow1: 'Stack', headerRow2: 'Top', colGapBefore: 1 };
-ChibiOSItems[DisplayFields[DisplayFields.STACK_END]] = { width: 4, headerRow1: '', headerRow2: 'End', colGapBefore: 1 };
-ChibiOSItems[DisplayFields[DisplayFields.STACK_MIN_FREE]] = { width: 3, headerRow1: '', headerRow2: 'Min. free', colType: colNumType };
+ChibiOSItems[DisplayFields[DisplayFields.STACK_CURRENT_USAGE]] = { width: 3, headerRow1: 'Stack', headerRow2: '', colType: colNumType };
+ChibiOSItems[DisplayFields[DisplayFields.STACK_PEAK_USAGE]] = { width: 3, headerRow1: '', headerRow2: '', colType: colNumType };
 
 const DisplayFieldNames: string[] = Object.keys(ChibiOSItems);
 
@@ -68,7 +66,9 @@ function getThreadStateName(s: number): string {
 }
 
 function getCString(s: string, nullValue: string = ''): string {
+
     const matchName = s.match(/"([^*]*)"$/);
+
     return matchName ? matchName[1] : nullValue;
 }
 
@@ -88,6 +88,39 @@ function nvl(v: any, nullValue: any) {
     return v;
 }
 
+function getStackDisplayPercentage(s?: number, v?: number) {
+
+    let text = '-';
+    let percent = 0;
+
+    if ((s !== undefined) && (v !== undefined)) {
+        if (v === -1) {
+            text = 'overflow';
+            percent = 100;
+        } else {
+            percent = Math.round((v / s) * 100);
+            text = `${percent.toString()}% (${v} / ${s})`;
+        }
+    }
+
+    return {text: text, percent: percent};
+}
+
+function getStackDisplayValue(v?: number): string {
+
+    let text = '-';
+
+    if (v) {
+        if (v === -1) {
+            text = 'overflow';
+        } else {
+            text = v.toString();
+        }
+    }
+
+    return text;
+}
+
 export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
@@ -98,7 +131,9 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
     private rlistCurrent: number = 0;
     private threadOffset: number = 0;
+    private threadSize: number = 0;
     private smp: boolean = false;
+    private hasWAEND: boolean = false;
 
     private stale: boolean = true;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
@@ -113,6 +148,55 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
     constructor(public session: vscode.DebugSession) {
         super(session, 'ChibiOS');
+    }
+
+    private async scanStackUnused(stackTop: number, stackEnd: number, s: number) {
+        const stackData = await this.session.customRequest(
+            'readMemory',
+            {
+                memoryReference: RTOSCommon.hexFormat(Math.min(stackTop, stackEnd)),
+                count: s
+            }
+        );
+
+        const bytes = new Uint8Array(Buffer.from(stackData.data, 'base64'));
+
+        let unused = 0;
+        while ((unused < bytes.length) && (bytes[unused] === 0x55)) {
+            unused++;
+        }
+
+        return unused;
+    }
+
+    private async getStackPointer(threadInfo: RTOSCommon.RTOSStrToValueMap) {
+
+        let sp = 0;
+        const currentThreadCtx = await this.getVarChildrenObj(threadInfo['ctx']?.ref, 'ctx');
+        const currentThreadCtxRegs = currentThreadCtx ? await this.getVarChildrenObj(currentThreadCtx['sp']?.ref, 'sp') : null;
+
+        if (currentThreadCtxRegs && currentThreadCtx) {
+            sp = getNumberNVL(currentThreadCtxRegs.hasOwnProperty('r13-val') ? currentThreadCtxRegs['r13']?.val : currentThreadCtx['sp']?.val, 0);
+        }
+
+        return sp;
+    }
+
+    private getStackPeak(stackInfo: RTOSCommon.RTOSStackInfo, unused: number) {
+
+        let peak = undefined;
+
+        if (this.hasWAEND) {
+            // Calculate stack peak
+            if (stackInfo.stackSize && stackInfo.stackSize !== 0) {
+                peak = Math.max(0, stackInfo.stackSize - unused);
+            }
+        } else {
+            // Assign stack min free size
+            peak = unused;
+        }
+
+        return peak;
     }
 
     public async tryDetect(useFrameId: number): Promise<RTOSCommon.RTOSBase> {
@@ -134,9 +218,23 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '(uint32_t) &ch0.reglist', false);
                 }
 
+                let chRlistCurrentWAEND;
                 this.chRlistCurrent = await this.getVarIfEmpty(this.chRlistCurrent, useFrameId, 'ch0.rlist.current', false);
+                chRlistCurrentWAEND = await this.getVarIfEmpty(chRlistCurrentWAEND, useFrameId, 'ch0.rlist.current.waend', true);
                 this.threadOffset = parseInt(await this.getExprVal('((char *)(&((thread_t *)0)->rqueue) - (char *)0)', useFrameId) || '');
+                this.threadSize = parseInt(await this.getExprVal('sizeof(thread_t)', useFrameId) || '');
                 this.status = 'initialized';
+
+                if (!chRlistCurrentWAEND) {
+                    // old version without waend
+                    ChibiOSItems[DisplayFields[DisplayFields.STACK_CURRENT_USAGE]] = { width: 3, headerRow1: 'Stack', headerRow2: 'Current free', colType: colNumType };
+                    ChibiOSItems[DisplayFields[DisplayFields.STACK_PEAK_USAGE]] = { width: 3, headerRow1: '', headerRow2: 'Min. free', colType: colNumType };
+                } else {
+                    // new version with waend
+                    ChibiOSItems[DisplayFields[DisplayFields.STACK_CURRENT_USAGE]] = { width: 4, headerRow1: 'Stack', headerRow2: 'Current %<br><small>(Used B / Size B)</small>', colType: RTOSCommon.ColTypeEnum.colTypePercentage };
+                    ChibiOSItems[DisplayFields[DisplayFields.STACK_PEAK_USAGE]] = { width: 4, headerRow1: '', headerRow2: 'Peak %<br><small>(Peak B / Size B)</small>', colType: RTOSCommon.ColTypeEnum.colTypePercentage };
+                    this.hasWAEND = true;
+                }
             }
             return this;
         }
@@ -270,18 +368,6 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
                             const stackInfo = await this.getStackInfo(currentThread);
 
-                            let stackMinFree: string;
-
-                            if (stackInfo.stackPeak) {
-                                if (stackInfo.stackPeak === -1) {
-                                    stackMinFree = 'overflow';
-                                } else {
-                                    stackMinFree = stackInfo.stackPeak.toString();
-                                }
-                            } else {
-                                stackMinFree = '-';
-                            }
-
                             i++;
 
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
@@ -299,9 +385,16 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                             mySetter(DisplayFields.STATS_N, threadStatsN);
                             mySetter(DisplayFields.STATS_WORST, threadStatsWorst);
                             mySetter(DisplayFields.STATS_CUMULATIVE, threadStatsCumulative);
-                            mySetter(DisplayFields.STACK_TOP, stackInfo.stackTop !== 0 ? RTOSCommon.hexFormat(stackInfo.stackTop) : '-');
-                            mySetter(DisplayFields.STACK_END, stackInfo.stackEnd !== 0 ? RTOSCommon.hexFormat(stackInfo.stackEnd || 0) : '-');
-                            mySetter(DisplayFields.STACK_MIN_FREE, stackMinFree);
+
+                            if (this.hasWAEND) {
+                                const currentStackUsage = getStackDisplayPercentage(stackInfo.stackSize, stackInfo.stackUsed);
+                                const peakStackUsage = getStackDisplayPercentage(stackInfo.stackSize, stackInfo.stackPeak);
+                                mySetter(DisplayFields.STACK_CURRENT_USAGE, currentStackUsage.text, currentStackUsage.percent);
+                                mySetter(DisplayFields.STACK_PEAK_USAGE, peakStackUsage.text, peakStackUsage.percent);
+                            } else {
+                                mySetter(DisplayFields.STACK_CURRENT_USAGE, getStackDisplayValue(stackInfo.stackFree));
+                                mySetter(DisplayFields.STACK_PEAK_USAGE, getStackDisplayValue(stackInfo.stackPeak));
+                            }
 
                             const threadInfo: RTOSCommon.RTOSThreadInfo = {
                                 display: display, stackInfo: stackInfo, running: threadRunning
@@ -330,51 +423,45 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap) {
+    protected async getStackInfo(threadInfo: RTOSCommon.RTOSStrToValueMap) {
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: 0,
-            stackTop: 0,
-            stackPeak: undefined
+            stackTop: 0
         };
 
-        const currentThreadCtx = await this.getVarChildrenObj(thInfo['ctx']?.ref, 'ctx');
-        const currentThreadCtxRegs = currentThreadCtx ? await this.getVarChildrenObj(currentThreadCtx['sp']?.ref, 'sp') : null;
+        stackInfo.stackEnd = getNumberNVL(threadInfo['wabase']?.val, 0);
+        stackInfo.stackTop = await this.getStackPointer(threadInfo);
 
-        if (currentThreadCtxRegs && currentThreadCtx) {
-            stackInfo.stackTop = getNumberNVL(currentThreadCtxRegs.hasOwnProperty('r13-val') ? currentThreadCtxRegs['r13']?.val : currentThreadCtx['sp']?.val, 0);
-            stackInfo.stackEnd = getNumberNVL(thInfo['wabase']?.val, 0);
+        if (this.hasWAEND) {
+            stackInfo.stackStart = Math.max(getNumberNVL(threadInfo['waend']?.val, 0) - this.threadSize);
 
-            if (stackInfo.stackTop === 0 || stackInfo.stackEnd === 0) {
-                stackInfo.stackFree = undefined;
-                stackInfo.stackPeak = undefined;
-            } else if (stackInfo.stackTop < stackInfo.stackEnd) {
-                stackInfo.stackFree = -1;
-                stackInfo.stackPeak = -1;
-            } else {
-                stackInfo.stackFree = stackInfo.stackTop - stackInfo.stackEnd;
-
-                /* check stack peak */
-                try {
-                    const stackData = await this.session.customRequest(
-                        'readMemory',
-                        {
-                            memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackTop, stackInfo.stackEnd)),
-                            count: Math.abs(stackInfo.stackTop - stackInfo.stackEnd)
-                        }
-                    );
-
-                    const bytes = new Uint8Array(Buffer.from(stackData.data, 'base64'));
-
-                    stackInfo.stackPeak = 0;
-                    while ((stackInfo.stackPeak < bytes.length) && (bytes[stackInfo.stackPeak] === 0x55)) {
-                        stackInfo.stackPeak++;
-                    }
-                }
-                catch (e) {
-                    console.log(e);
+            if (stackInfo.stackStart !== 0 && stackInfo.stackEnd !== 0) {
+                stackInfo.stackSize = Math.abs(stackInfo.stackStart - stackInfo.stackEnd);
+                if (stackInfo.stackTop === 0) {
+                    stackInfo.stackTop = stackInfo.stackStart;
                 }
             }
+        } else {
+            stackInfo.stackStart = stackInfo.stackTop;
+        }
+
+        if (stackInfo.stackTop === 0 || stackInfo.stackEnd === 0) {
+            // unknown stack
+            stackInfo.stackFree = stackInfo.stackPeak = stackInfo.stackUsed = undefined;
+        } else if (stackInfo.stackTop < stackInfo.stackEnd) {
+            // stack overflow
+            stackInfo.stackFree = stackInfo.stackPeak = stackInfo.stackUsed = -1;
+        } else {
+            stackInfo.stackFree = Math.abs(stackInfo.stackTop - stackInfo.stackEnd);
+
+            if (stackInfo.stackSize && stackInfo.stackSize !== 0 ) {
+                stackInfo.stackUsed = Math.max(0, stackInfo.stackSize - stackInfo.stackFree);
+            }
+
+            // get stack peak
+            const unused = await this.scanStackUnused(stackInfo.stackTop, stackInfo.stackEnd, stackInfo.stackFree);
+            stackInfo.stackPeak = this.getStackPeak(stackInfo, unused);
         }
 
         return stackInfo;
