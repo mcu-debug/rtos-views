@@ -68,8 +68,6 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
   private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
   private timeInfo: string = "";
 
-  private stackPattern = 0x00; // TODO find out what the default stack pattern is
-
   /* As of https://docs.zephyrproject.org/latest/hardware/porting/arch.html - At present, Zephyr does not support stacks that grow upward. */
   private stackIncrements = -1; // negative numbers => stack expands from higher address to lower addresses
 
@@ -79,10 +77,6 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
     super(session, "Zephyr");
 
     if (session.configuration.rtosViewConfig) {
-      if (session.configuration.rtosViewConfig.stackPattern) {
-        this.stackPattern = parseInt(session.configuration.rtosViewConfig.stackPattern);
-      }
-
       if (session.configuration.rtosViewConfig.stackGrowth) {
         this.stackIncrements = parseInt(session.configuration.rtosViewConfig.stackGrowth);
       }
@@ -225,7 +219,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
               const thStateObject = await this.analyzeTaskState(curTaskObjBase);
               const thState = thStateObject.describe();
 
-              const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern);
+              const stackInfo = await this.getStackInfo(curTaskObj);
 
               const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
               const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -346,7 +340,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
     }
   }
 
-  protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null, stackPattern: number) {
+  protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null) {
     const stackInfo: RTOSCommon.RTOSStackInfo = {
       stackStart: 0,
       stackTop: 0,
