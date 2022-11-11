@@ -325,6 +325,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
           } else {
             if (timeoutValue) {
               const eventInfo: EventInfo = { address: 0x00, eventType: OsEventType.Generic, timeout: timeoutValue };
+              resultState.addEvent(eventInfo);
             }
           }
           return resultState;
