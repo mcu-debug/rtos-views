@@ -56,6 +56,11 @@
                 "type": "boolean",
                 "default": true,
                 "description": "Enable/Disable display of RTOS panel"
+            },
+            "mcu-debug.rtos-views.disableStackPeaks": {
+                "type": "boolean",
+                "default": false,
+                "description": "Determining stack peaks requires that stack memory be read to determin a high water mark. Stack peaks are useful but can be expensive in runtime."
             }
         },
         "viewsContainers": {

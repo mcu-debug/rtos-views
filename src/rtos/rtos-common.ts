@@ -70,6 +70,7 @@ export class ShouldRetry extends Error {
 }
 
 export abstract class RTOSBase {
+    public static disableStackPeaks: boolean = false;
     public progStatus: 'started' | 'stopped' | 'running' | 'exited';
     public status: 'failed' | 'initialized' | 'none';
     public className: string;

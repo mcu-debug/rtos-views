@@ -346,28 +346,30 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             } else {
                 stackInfo.stackFree = stackInfo.stackSize - stackDelta;
             }
-            const memArg: DebugProtocol.ReadMemoryArguments = {
-                memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackStart, stackInfo.stackEnd)),
-                count: stackInfo.stackSize
-            };
-            try {
-                const stackData = await this.session.customRequest('readMemory', memArg);
-                const buf = Buffer.from(stackData.data, 'base64');
-                stackInfo.bytes = new Uint8Array(buf);
-                let start = this.stackIncrements < 0 ? 0 : stackInfo.bytes.length - 1;
-                const end = this.stackIncrements < 0 ? stackInfo.bytes.length : -1;
-                let peak = 0;
-                while (start !== end) {
-                    if (stackInfo.bytes[start] !== waterMark) {
-                        break;
+            if (!RTOSCommon.RTOSBase.disableStackPeaks) {
+                const memArg: DebugProtocol.ReadMemoryArguments = {
+                    memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackStart, stackInfo.stackEnd)),
+                    count: stackInfo.stackSize
+                };
+                try {
+                    const stackData = await this.session.customRequest('readMemory', memArg);
+                    const buf = Buffer.from(stackData.data, 'base64');
+                    stackInfo.bytes = new Uint8Array(buf);
+                    let start = this.stackIncrements < 0 ? 0 : stackInfo.bytes.length - 1;
+                    const end = this.stackIncrements < 0 ? stackInfo.bytes.length : -1;
+                    let peak = 0;
+                    while (start !== end) {
+                        if (stackInfo.bytes[start] !== waterMark) {
+                            break;
+                        }
+                        start -= this.stackIncrements;
+                        peak++;
                     }
-                    start -= this.stackIncrements;
-                    peak++;
+                    stackInfo.stackPeak = stackInfo.stackSize - peak;
                 }
-                stackInfo.stackPeak = stackInfo.stackSize - peak;
-            }
-            catch (e) {
-                console.log(e);
+                catch (e) {
+                    console.log(e);
+                }
             }
         }
         return stackInfo;

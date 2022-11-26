@@ -241,6 +241,7 @@ export class RTOSTracker implements DebugEventHandler {
         const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
 
         this.enabled = config.get('showRTOS', true);
+        RTOSCommon.RTOSBase.disableStackPeaks = config.get('disableStackPeaks', true);
         this.visible = this.enabled;
         vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
         context.subscriptions.push(
@@ -257,6 +258,10 @@ export class RTOSTracker implements DebugEventHandler {
             this.enabled = config.get('showRTOS', true);
             vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
             this.update();
+        }
+        if (e.affectsConfiguration('mcu-debug.rtos-views.disableStackPeaks')) {
+            const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
+            RTOSCommon.RTOSBase.disableStackPeaks = config.get('disableStackPeaks', false);
         }
     }
 
