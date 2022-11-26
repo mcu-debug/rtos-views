@@ -15,6 +15,7 @@
         "cppdbg",
         "cspy",
         "esbuild",
+        "FLAGGROUP",
         "OSTCB",
         "pqueue",
         "Prio",
@@ -23,6 +24,7 @@
         "rqueue",
         "RTOSEMBOS",
         "RTOSUCOS",
+        "RTOSZEPHYR",
         "wabase",
         "wtobjp"
     ],
