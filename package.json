@@ -4,6 +4,7 @@
     "description": "RTOS views for microcontrollers",
     "version": "0.0.2",
     "publisher": "mcu-debug",
+    "preview": true,
     "repository": {
         "type": "git",
         "url": "https://github.com/mcu-debug/rtos-views"
