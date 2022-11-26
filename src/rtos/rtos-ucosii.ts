@@ -108,13 +108,13 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
+        function strong(text: string) {
+            return `<strong>${text}</strong>`;
+        }
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
                 let ret: string = '';
-                function strong(text: string) {
-                    return `<strong>${text}</strong>`;
-                }
 
                 if (!thInfo['OSTCBTaskName']?.val) {
                     ret += `Thread name missing: Enable macro ${strong('OS_TASK_NAME_EN')} and use ${strong('OSTaskNameSet')} in FW<br><br>`;
@@ -137,7 +137,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;
@@ -306,7 +306,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getEventInfo(address: number, eventObject: RTOSCommon.RTOSStrToValueMap, frameId: number): Promise<EventInfo> {
+    protected async getEventInfo(address: number, eventObject: RTOSCommon.RTOSStrToValueMap, _frameId: number): Promise<EventInfo> {
         const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType']?.val) };
 
         if (eventObject['OSEventName']?.val) {
@@ -415,7 +415,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         return result;
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, frameId: number) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, _frameId: number) {
         const TopOfStack = thInfo['OSTCBStkPtr']?.val;
 
         /* only available with OS_TASK_CREATE_EXT_EN (optional) */

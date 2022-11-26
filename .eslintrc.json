@@ -2,19 +2,45 @@
     "root": true,
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "ecmaVersion": 6,
-        "sourceType": "module"
+        "ecmaVersion": 2020
+    },
+    "env": {
+        "node": true,
+        "commonjs": true,
+        "es6": true,
+        "jest": true,
+        "browser": true
     },
     "plugins": [
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "@typescript-eslint/eslint-plugin"
     ],
+    "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
     "rules": {
+        "quotes": ["warn", "single"],
+        "semi": ["error", "always"],
+        "no-console": "off",
+        "no-var": 1,
+        "no-empty": "off",
+        "no-case-declarations": 0,
+        "@typescript-eslint/no-unused-vars": [
+            "warn",
+            {
+                "argsIgnorePattern": "(^_)|(^h$)",
+                "varsIgnorePattern": "(^_)|(^h$)",
+                "caughtErrorsIgnorePattern": "(^_)|(^h$)"
+            }
+        ],
+        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-explicit-any": 0,
+        "@typescript-eslint/camelcase": 0,
+        "@typescript-eslint/no-non-null-assertion": 0,
+        "object-curly-spacing": [1, "always"],
         "@typescript-eslint/naming-convention": "warn",
         "@typescript-eslint/semi": "warn",
         "curly": "warn",
         "eqeqeq": "warn",
-        "no-throw-literal": "warn",
-        "semi": "off"
+        "no-throw-literal": "warn"
     },
     "ignorePatterns": [
         "out",

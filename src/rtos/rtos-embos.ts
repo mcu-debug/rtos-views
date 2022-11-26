@@ -103,13 +103,13 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
+        function strong(text: string) {
+            return `<strong>${text}</strong>`;
+        }
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
                 let ret: string = '';
-                function strong(text: string) {
-                    return `<strong>${text}</strong>`;
-                }
 
                 if (!thInfo['sName']?.val) {
                     ret += `Thread name missing: Enable ${strong('OS_SUPPORT_TRACKNAME')} or use library mode that enables it and
@@ -132,7 +132,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;
@@ -151,7 +151,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                     let isRunning: any = '0';
 
-                    if (this.OSGlobalVal.hasOwnProperty('IsRunning-val')) {
+                    if (this.OSGlobalVal.hasOwn('IsRunning-val')) {
                         isRunning = this.OSGlobalVal['IsRunning']?.val;
                     }
                     else {
@@ -223,11 +223,11 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     do {
                         let thName = '???';
 
-                        if (curTaskObj.hasOwnProperty('sName-val')) {
+                        if (Object.hasOwn(curTaskObj, 'sName-val')) {
                             const matchName = curTaskObj['sName']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['sName']?.val;
                         }
-                        else if (curTaskObj.hasOwnProperty('Name-val')) { /* older embOS versions used Name */
+                        else if (Object.hasOwn(curTaskObj, 'Name-val')) { /* older embOS versions used Name */
                             const matchName = curTaskObj['Name']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['Name']?.val;
                         }
@@ -384,7 +384,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         const StackSize = thInfo['StackSize']?.val;
         let EndOfStack: any;
 
-        if (thInfo.hasOwnProperty('pStackBase-val')) {
+        if (Object.hasOwn(thInfo, 'pStackBase-val')) {
             EndOfStack = thInfo['pStackBase']?.val;
         }
         else {

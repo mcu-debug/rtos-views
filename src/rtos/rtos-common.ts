@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -70,7 +71,7 @@ export class ShouldRetry extends Error {
 }
 
 export abstract class RTOSBase {
-    public static disableStackPeaks: boolean = false;
+    public static disableStackPeaks = false;
     public progStatus: 'started' | 'stopped' | 'running' | 'exited';
     public status: 'failed' | 'initialized' | 'none';
     public className: string;
@@ -94,6 +95,7 @@ export abstract class RTOSBase {
 
     private static reqCounter = 0;
     public customRequest(cmd: string, arg: any, opt?: boolean): Thenable<any> {
+        // eslint-disable-next-line no-async-promise-executor
         return new Promise<any>(async (resolve, reject) => {
             const c = ++RTOSBase.reqCounter;
             if (traceVars) {
@@ -148,6 +150,7 @@ export abstract class RTOSBase {
             expression: expr,
             context: 'hover'
         };
+        // eslint-disable-next-line no-useless-catch
         try {
             const result = await this.customRequest('evaluate', arg, optional);
             if (!result || (!optional && (result.variablesReference === 0))) {
@@ -167,6 +170,7 @@ export abstract class RTOSBase {
             expression: expr,
             context: 'hover'
         };
+        // eslint-disable-next-line no-useless-catch
         try {
             const result = await this.customRequest('evaluate', arg);
             const ret = result?.result;
@@ -276,7 +280,8 @@ export abstract class RTOSBase {
     }
 
     protected getExprValChildrenObj(expr: string, frameId: number): Promise<RTOSStrToValueMap | any> {
-        return new Promise<RTOSStrToValueMap | any>(async (resolve, reject) => {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise<RTOSStrToValueMap | any>(async (resolve) => {
             try {
                 const vars = await this.getExprValChildren(expr, frameId);
                 const obj = RTOSVarHelper.varsToObj(vars);
@@ -342,17 +347,15 @@ export abstract class RTOSBase {
                 let have2ndRow = false;
                 const commonHeaderRowPart = '  <vscode-data-grid-row row-type="header" class="threads-header-row">\n';
                 const commonHeaderCellPart = '    <vscode-data-grid-cell cell-type="columnheader" class="threads-header-cell';
-                if (true) {
-                    header = commonHeaderRowPart;
-                    for (const key of displayFieldNames) {
-                        const txt = padText(key, RTOSDisplayColumn[key].headerRow1);
-                        const additionalClasses = getAlignClasses(key);
-                        header += `${commonHeaderCellPart}${additionalClasses}" grid-column="${col}">${txt}</vscode-data-grid-cell>\n`;
-                        if (!have2ndRow) { have2ndRow = !!RTOSDisplayColumn[key].headerRow2; }
-                        col++;
-                    }
-                    header += '  </vscode-data-grid-row>\n';
+                header = commonHeaderRowPart;
+                for (const key of displayFieldNames) {
+                    const txt = padText(key, RTOSDisplayColumn[key].headerRow1);
+                    const additionalClasses = getAlignClasses(key);
+                    header += `${commonHeaderCellPart}${additionalClasses}" grid-column="${col}">${txt}</vscode-data-grid-cell>\n`;
+                    if (!have2ndRow) { have2ndRow = !!RTOSDisplayColumn[key].headerRow2; }
+                    col++;
                 }
+                header += '  </vscode-data-grid-row>\n';
 
                 if (have2ndRow) {
                     col = 1;
@@ -593,7 +596,7 @@ export function isNullOrUndefined(x: any) {
     return (x === undefined) || (x === null);
 }
 
-export function hexFormat(value: number, padding: number = 8, includePrefix: boolean = true): string {
+export function hexFormat(value: number, padding = 8, includePrefix = true): string {
     let base = (value >>> 0).toString(16);
     base = base.padStart(padding, '0');
     return includePrefix ? '0x' + base : base;
@@ -625,6 +628,7 @@ export function toStringDecHexOctBin(val: number/* should be an integer*/): stri
     str = val.toString(2);
     str = '0'.repeat(Math.max(0, 32 - str.length)) + str;
     let tmp = '';
+    // eslint-disable-next-line no-constant-condition
     while (true) {
         if (str.length <= 8) {
             tmp = str + tmp;

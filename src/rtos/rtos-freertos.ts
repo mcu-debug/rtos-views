@@ -47,7 +47,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // Since all of them are global variable, we only need to create them once per session. These are
     // similar to Watch/Hover variables
     private uxCurrentNumberOfTasks: RTOSCommon.RTOSVarHelperMaybe;
-    private uxCurrentNumberOfTasksVal: number = 0;
+    private uxCurrentNumberOfTasksVal = 0;
     private pxReadyTasksLists: RTOSCommon.RTOSVarHelperMaybe;
     private xDelayedTaskList1: RTOSCommon.RTOSVarHelperMaybe;
     private xDelayedTaskList2: RTOSCommon.RTOSVarHelperMaybe;
@@ -56,13 +56,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xSuspendedTaskList: RTOSCommon.RTOSVarHelperMaybe;
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
-    private ulTotalRunTimeVal: number = 0;
+    private ulTotalRunTimeVal = 0;
 
-    private stale: boolean = true;
-    private curThreadAddr: number = 0;
+    private stale = true;
+    private curThreadAddr = 0;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
-    private timeInfo: string = '';
+    private timeInfo = '';
     private readonly maxThreads = 1024;
     private helpHtml: string | undefined;
 
@@ -106,13 +106,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
+        function strong(s: string) {
+            return `<strong>${s}</strong>`;
+        }
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
-                let ret: string = '';
-                function strong(s: string) {
-                    return `<strong>${s}</strong>`;
-                }
+                let ret = '';
                 if (!thInfo['uxTCBNumber'].val) {
                     ret += `Thread ID missing......: Enable macro ${strong('configUSE_TRACE_FACILITY')} in FW<br>`;
                 }
@@ -174,7 +174,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;

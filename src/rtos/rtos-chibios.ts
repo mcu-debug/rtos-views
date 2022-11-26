@@ -103,7 +103,7 @@ function getStackDisplayPercentage(s?: number, v?: number) {
         }
     }
 
-    return {text: text, percent: percent};
+    return { text: text, percent: percent };
 }
 
 function getStackDisplayValue(v?: number): string {
@@ -176,7 +176,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         const currentThreadCtxRegs = currentThreadCtx ? await this.getVarChildrenObj(currentThreadCtx['sp']?.ref, 'sp') : null;
 
         if (currentThreadCtxRegs && currentThreadCtx) {
-            sp = getNumberNVL(currentThreadCtxRegs.hasOwnProperty('r13-val') ? currentThreadCtxRegs['r13']?.val : currentThreadCtx['sp']?.val, 0);
+            sp = getNumberNVL(Object.hasOwn(currentThreadCtxRegs, 'r13-val') ? currentThreadCtxRegs['r13']?.val : currentThreadCtx['sp']?.val, 0);
         }
 
         return sp;
@@ -218,9 +218,8 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '(uint32_t) &ch0.reglist', false);
                 }
 
-                let chRlistCurrentWAEND;
                 this.chRlistCurrent = await this.getVarIfEmpty(this.chRlistCurrent, useFrameId, 'ch0.rlist.current', false);
-                chRlistCurrentWAEND = await this.getVarIfEmpty(chRlistCurrentWAEND, useFrameId, 'ch0.rlist.current.waend', true);
+                const chRlistCurrentWAEND = await this.getVarIfEmpty(undefined, useFrameId, 'ch0.rlist.current.waend', true);
                 this.threadOffset = parseInt(await this.getExprVal('((char *)(&((thread_t *)0)->rqueue) - (char *)0)', useFrameId) || '');
                 this.threadSize = parseInt(await this.getExprVal('sizeof(thread_t)', useFrameId) || '');
                 this.status = 'initialized';
@@ -253,15 +252,14 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         th: RTOSCommon.RTOSThreadInfo,
         thread: RTOSCommon.RTOSStrToValueMap,
         threadStats: RTOSCommon.RTOSStrToValueMap,
-        threadStack: RTOSCommon.RTOSStackInfo
-        ) {
-        if (this.helpHtml === undefined) {
+        _threadStack: RTOSCommon.RTOSStackInfo
+    ) {
+        function strong(text: string) {
+            return `<strong>${text}</strong>`;
+        } if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
                 let ret: string = '';
-                function strong(text: string) {
-                    return `<strong>${text}</strong>`;
-                }
 
                 if (!getNumberNVL(thread['wabase']?.val, 0)) {
                     ret += `Thread stack debug information is not enabled: to enable set ${strong('CH_DBG_ENABLE_STACK_CHECK')} and ${strong('CH_DBG_FILL_THREADS')} to ${strong('TRUE')} in chconf.h<br><br>`;
@@ -284,7 +282,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;
@@ -455,7 +453,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         } else {
             stackInfo.stackFree = Math.abs(stackInfo.stackTop - stackInfo.stackEnd);
 
-            if (stackInfo.stackSize && stackInfo.stackSize !== 0 ) {
+            if (stackInfo.stackSize && stackInfo.stackSize !== 0) {
                 stackInfo.stackUsed = Math.max(0, stackInfo.stackSize - stackInfo.stackFree);
             }
 
