@@ -37,7 +37,7 @@
             {
                 "category": "RTOS Views",
                 "command": "mcu-debug.rtos-views.helloWorld",
-                "title": "Hello World"
+                "title": "Hello World Test"
             },
             {
                 "category": "RTOS Views",

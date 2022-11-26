@@ -1,4 +1,5 @@
 # RTOS Views
+
 RTOS views for micro-controllers that work with any debugger. This was initially part of Cortex-Debug and has been re-factored into its own extension and is now debugger agnostic
 
 Currently, cortex-debug, cppdbg and cspy are supported but others can easily be added upon request. The debugger has to support the [Debug Adapter Protocol](https://microsoft.github.io/debug-adapter-protocol/). This protocol specifies how to format/make requests and responses.
@@ -21,3 +22,13 @@ Here is an example of a FreeRTOS view with some information missing. We generall
 ![FreeRTOS with partial info](./images/FreeRTOS.png)
 
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality
+
+# Contributors and maintainers
+
+| RTOS           | Contributor     |
+| -------------- | --------------- |
+| FreeRTOS       | @haneefdm       |
+| uC/OS-II       | @PhilippHaefele |
+| embOS          | @PhilippHaefele |
+| Zephyr (beta)  | @PhilippHaefele |
+| ChibiOS (beta) | @vrepetenko VR  |
