@@ -35,9 +35,6 @@
         "waend",
         "wtobjp"
     ],
-    "prettier.jsxSingleQuote": true,
-    "prettier.singleQuote": true,
-    "prettier.tabWidth": 4,
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
     "editor.wordWrapColumn": 120,
