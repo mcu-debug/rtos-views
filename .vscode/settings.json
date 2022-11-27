@@ -36,6 +36,7 @@
         "wtobjp"
     ],
     "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.trailingComma": "none",
     "editor.formatOnSave": true,
     "editor.wordWrapColumn": 120,
     "editor.detectIndentation": false
