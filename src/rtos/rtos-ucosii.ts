@@ -419,16 +419,16 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         const TopOfStack = thInfo['OSTCBStkPtr']?.val;
 
         /* only available with OS_TASK_CREATE_EXT_EN (optional) */
-        const EndOfStack = thInfo['OSTCBStkBottom']?.val;
-        const StackSize = thInfo['OSTCBStkSize']?.val;
+        const EndOfStack = parseInt(thInfo['OSTCBStkBottom']?.val) || 0;
+        const StackSize = parseInt(thInfo['OSTCBStkSize']?.val) || 0;
 
         let Stack = 0;
-        if (EndOfStack && StackSize) {
+        if (EndOfStack !== 0 && StackSize !== 0) {
             if (this.stackIncrements < 0) {
-                Stack = parseInt(EndOfStack) + (parseInt(StackSize) * this.stackEntrySize);
+                Stack = EndOfStack + StackSize * this.stackEntrySize;
             }
             else {
-                Stack = parseInt(EndOfStack) - (parseInt(StackSize) * this.stackEntrySize);
+                Stack = EndOfStack - StackSize * this.stackEntrySize;
             }
         }
         else {
@@ -441,9 +441,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
             stackTop: parseInt(TopOfStack)
         };
 
-        if (EndOfStack && StackSize) {
-            stackInfo.stackEnd = parseInt(EndOfStack);
-            stackInfo.stackSize = parseInt(StackSize) * this.stackEntrySize;
+        if (EndOfStack !== 0 && StackSize !== 0) {
+            stackInfo.stackEnd = EndOfStack;
+            stackInfo.stackSize = StackSize * this.stackEntrySize;
 
             if (this.stackIncrements < 0) {
                 const stackDelta = stackInfo.stackStart - stackInfo.stackTop;
