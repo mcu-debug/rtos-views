@@ -234,7 +234,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                         const threadId = curTaskObj['OSTCBId']?.val;
 
                         let thName = '???';
-                        if (curTaskObj['OSTCBTaskName-exp']) {
+                        if (curTaskObj['OSTCBTaskName']) {
                             const tmpThName = await this.getExprVal('(char *)' + curTaskObj['OSTCBTaskName']?.exp, frameId) || '';
                             const matchName = tmpThName.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : tmpThName;
