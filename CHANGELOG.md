@@ -1,9 +1,7 @@
 # Change Log
 
-All notable changes to the "rtos-views" extension will be documented in this file.
+## 0.0.3 - Jan 10, 2023
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+Bug fix: [PR#12: Fix bug when OS_TASK_CREATE_EXT_EN is enabled, but code is using OSTaskCreate()](https://github.com/mcu-debug/rtos-views/pull/12)
 
-## [Unreleased]
-
-- Initial release
+Bug fix: [PR#11: Fix issue with not showing uC/OS-II thread names](https://github.com/mcu-debug/rtos-views/pull/11)
