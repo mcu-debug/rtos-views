@@ -239,7 +239,7 @@ export class RTOSTracker implements DebugEventHandler {
     private provider: RTOSViewProvider;
     private theTracker: MyDebugTracker;
     public enabled: boolean;
-    public visible: boolean;
+    public visible: boolean = false;
 
     constructor(private context: vscode.ExtensionContext) {
         this.provider = new RTOSViewProvider(context.extensionUri, this);
@@ -248,7 +248,6 @@ export class RTOSTracker implements DebugEventHandler {
 
         this.enabled = config.get('showRTOS', true);
         RTOSCommon.RTOSBase.disableStackPeaks = config.get('disableStackPeaks', true);
-        this.visible = this.enabled;
         vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(RTOSViewProvider.viewType, this.provider),
@@ -263,6 +262,9 @@ export class RTOSTracker implements DebugEventHandler {
             const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
             this.enabled = config.get('showRTOS', true);
             vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
+            if (this.enabled) {
+                this.provider.showAndFocus();
+            }
             this.update();
         }
         if (e.affectsConfiguration('mcu-debug.rtos-views.disableStackPeaks')) {
@@ -320,24 +322,22 @@ export class RTOSTracker implements DebugEventHandler {
 
     public toggleRTOSPanel() {
         this.enabled = !this.enabled;
-        this.updateRTOSPanelStatus();
+        this.updateRTOSPanelStatus(this.enabled);
     }
 
-    private updateRTOSPanelStatus() {
+    private updateRTOSPanelStatus(v: boolean) {
+        this.enabled = v;
         const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
         config.update('showRTOS', this.enabled);
         vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
-        /*
-            if (this.enabled) {
-                this.provider.showAndFocus();
-            }
-            this.update();
-            */
+        if (this.enabled) {
+            this.provider.showAndFocus();
+        }
+        this.update();
     }
 
     public notifyPanelDisposed() {
-        this.enabled = this.visible = false;
-        this.updateRTOSPanelStatus();
+        this.visible = false;
     }
 
     public async visibilityChanged(v: boolean) {
@@ -445,12 +445,11 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     ) {
         this.webviewView = webviewView;
         this.parent.visible = this.webviewView.visible;
-        this.parent.enabled = true;
 
         webviewView.webview.options = {
             // Allow scripts in the webview
             enableScripts: true,
-            localResourceRoots: [this.extensionUri],
+            localResourceRoots: [this.extensionUri]
         };
         this.webviewView.description = 'View RTOS internals';
 
@@ -478,9 +477,11 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     }
 
     public showAndFocus() {
-        if (this.webviewView) {
-            this.webviewView.show(false);
-        }
+        // The following does not require the webview to exist. It will be created if needed
+        vscode.commands.executeCommand('rtos-views.rtos.focus');
+        //
+        // Following will toggle our panel. Why it is named like that, I don't know. It makes no mention of XRTOS
+        // vscode.commands.executeCommand('workbench.view.extension.rtos-views');
     }
 
     public updateHtml() {

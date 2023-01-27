@@ -14,7 +14,7 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"request": "launch",
-			"debugWebviews": true,
+			// "debugWebviews": true,
 			"type": "extensionHost"
 		},
 		{
