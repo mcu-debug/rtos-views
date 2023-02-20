@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.5 - Feb 20, 2023
+
+Bug fix: [Issue#22: Fix issue with embOS not working](https://github.com/mcu-debug/rtos-views/issues/22)
+
 ## 0.0.4 - Jan 27, 2023
 
 Bug fix: [Issue#16: XRTOS view keeps turning on after restarting vscode](https://github.com/mcu-debug/rtos-views/issues/16)

@@ -197,22 +197,32 @@ class MyDebugTracker {
 
     static allSessions: { [sessionId: string]: vscode.DebugSession } = {};
     async debugTrackerEventHandler(event: IDebuggerTrackerEvent) {
-        let session = MyDebugTracker.allSessions[event.sessionId];
-        const isNewSession = !session && event.session;
-        if (event.session) {
-            session = event.session;
-            MyDebugTracker.allSessions[event.sessionId] = session;
-        }
-        if (!session) {
-            // THis should not happen
-            console.error('rtos-views: Could not find session ' + event.sessionId);
+        let session = event.session;
+        if (DebugSessionStatus.Initializing !== event.event) {
+            session = MyDebugTracker.allSessions[event.sessionId];
+            if (!session) {
+                // THis should not happen
+                console.error('rtos-views: Could not find session ' + event.sessionId);
+                return;
+            }
+        } else if (!session) {
+            console.error('Initializing but no session info?');
             return;
         }
-        if (isNewSession) {
-            this.handler.onStarted(session);
-        }
         switch (event.event) {
+            case DebugSessionStatus.Initializing: {
+                // Note that we can get initialized but never actually start the session due to errors
+                // so, we wait until we actually get a Started event
+                MyDebugTracker.allSessions[session.id] = session;
+                break;
+            }
+            case DebugSessionStatus.Started: {
+                this.handler.onStarted(session);
+                break;
+            }
             case OtherDebugEvents.FirstStackTrace: {
+                // TODOL Technically, we don't need the frameId any more but it won't hurt to wait a bit
+                // until most of VSCode updates itself before we start queries
                 const frameId =
                     (event.stackTrace &&
                         event.stackTrace.body.stackFrames &&
