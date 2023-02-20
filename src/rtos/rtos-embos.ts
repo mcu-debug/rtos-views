@@ -151,7 +151,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                     let isRunning: any = '0';
 
-                    if (this.OSGlobalVal.hasOwn('IsRunning-val')) {
+                    if (Object.hasOwn(this.OSGlobalVal, 'IsRunning')) {
                         isRunning = this.OSGlobalVal['IsRunning']?.val;
                     }
                     else {
