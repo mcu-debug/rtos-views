@@ -223,11 +223,11 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     do {
                         let thName = '???';
 
-                        if (Object.hasOwn(curTaskObj, 'sName-val')) {
+                        if (Object.hasOwn(curTaskObj, 'sName')) {
                             const matchName = curTaskObj['sName']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['sName']?.val;
                         }
-                        else if (Object.hasOwn(curTaskObj, 'Name-val')) { /* older embOS versions used Name */
+                        else if (Object.hasOwn(curTaskObj, 'Name')) { /* older embOS versions used Name */
                             const matchName = curTaskObj['Name']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['Name']?.val;
                         }
@@ -384,7 +384,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         const StackSize = thInfo['StackSize']?.val;
         let EndOfStack: any;
 
-        if (Object.hasOwn(thInfo, 'pStackBase-val')) {
+        if (Object.hasOwn(thInfo, 'pStackBase')) {
             EndOfStack = thInfo['pStackBase']?.val;
         }
         else {
