@@ -56,7 +56,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     private timeInfo: string = '';
     private readonly maxThreads = 1024;
 
-    private stackPattern = 0x00;
+    private stackPattern = 0xCD; /* Seems that OS_TASK_CREATE() does initialize the stack to 0xCD */
     private stackIncrements = -1; /* negative numbers => high to low address growth on stack (OS_STACK_GROWS_TOWARD_HIGHER_ADDR = 0) */
 
     private helpHtml: string | undefined;
@@ -151,7 +151,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                     let isRunning: any = '0';
 
-                    if (this.OSGlobalVal.hasOwn('IsRunning-val')) {
+                    if (Object.hasOwn(this.OSGlobalVal, 'IsRunning')) {
                         isRunning = this.OSGlobalVal['IsRunning']?.val;
                     }
                     else {
@@ -223,11 +223,11 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                     do {
                         let thName = '???';
 
-                        if (Object.hasOwn(curTaskObj, 'sName-val')) {
+                        if (Object.hasOwn(curTaskObj, 'sName')) {
                             const matchName = curTaskObj['sName']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['sName']?.val;
                         }
-                        else if (Object.hasOwn(curTaskObj, 'Name-val')) { /* older embOS versions used Name */
+                        else if (Object.hasOwn(curTaskObj, 'Name')) { /* older embOS versions used Name */
                             const matchName = curTaskObj['Name']?.val.match(/"([^*]*)"$/);
                             thName = matchName ? matchName[1] : curTaskObj['Name']?.val;
                         }
@@ -384,7 +384,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         const StackSize = thInfo['StackSize']?.val;
         let EndOfStack: any;
 
-        if (Object.hasOwn(thInfo, 'pStackBase-val')) {
+        if (Object.hasOwn(thInfo, 'pStackBase')) {
             EndOfStack = thInfo['pStackBase']?.val;
         }
         else {
