@@ -15,10 +15,20 @@
         "@typescript-eslint",
         "@typescript-eslint/eslint-plugin"
     ],
-    "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "prettier"
+    ],
     "rules": {
-        "quotes": ["warn", "single"],
-        "semi": ["error", "always"],
+        "quotes": [
+            "warn",
+            "single"
+        ],
+        "semi": [
+            "error",
+            "always"
+        ],
         "no-console": "off",
         "no-var": 1,
         "no-empty": "off",
@@ -35,7 +45,10 @@
         "@typescript-eslint/no-explicit-any": 0,
         "@typescript-eslint/camelcase": 0,
         "@typescript-eslint/no-non-null-assertion": 0,
-        "object-curly-spacing": [1, "always"],
+        "object-curly-spacing": [
+            1,
+            "always"
+        ],
         "@typescript-eslint/naming-convention": "warn",
         "@typescript-eslint/semi": "warn",
         "curly": "warn",
