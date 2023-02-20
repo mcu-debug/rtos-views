@@ -56,7 +56,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     private timeInfo: string = '';
     private readonly maxThreads = 1024;
 
-    private stackPattern = 0x00;
+    private stackPattern = 0xCD; /* Seems that OS_TASK_CREATE() does initialize the stack to 0xCD */
     private stackIncrements = -1; /* negative numbers => high to low address growth on stack (OS_STACK_GROWS_TOWARD_HIGHER_ADDR = 0) */
 
     private helpHtml: string | undefined;
