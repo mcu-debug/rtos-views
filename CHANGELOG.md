@@ -3,6 +3,7 @@
 ## 0.0.5 - Feb 20, 2023
 
 Bug fix: [Issue#22: Fix issue with embOS not working](https://github.com/mcu-debug/rtos-views/issues/22)
+Big fix: Fix an issue where we are tracking a session that started but never finished starting. So, it looked like we are tracking a zombie session that never actually started.
 
 ## 0.0.4 - Jan 27, 2023
 
