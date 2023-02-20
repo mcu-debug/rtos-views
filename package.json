@@ -125,6 +125,7 @@
         "@vscode/test-electron": "^2.1.5",
         "esbuild": "^0.14.53",
         "eslint": "^8.24.0",
+        "eslint-config-prettier": "^8.5.0",
         "glob": "^8.0.3",
         "mocha": "^10.0.0",
         "ts-loader": "^9.4.1",

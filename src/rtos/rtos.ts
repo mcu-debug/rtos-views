@@ -182,7 +182,9 @@ class MyDebugTracker {
                     };
                     const result = trackerApi.subscribe(arg);
                     if (typeof result === 'string') {
-                        vscode.window.showErrorMessage(`Subscription failed with extension 'debug-tracker-vscode' : ${result}`);
+                        vscode.window.showErrorMessage(
+                            `Subscription failed with extension 'debug-tracker-vscode' : ${result}`
+                        );
                         resolve(false);
                     } else {
                         trackerApiClientInfo = result;
@@ -212,7 +214,9 @@ class MyDebugTracker {
         switch (event.event) {
             case OtherDebugEvents.FirstStackTrace: {
                 const frameId =
-                    (event.stackTrace && event.stackTrace.body.stackFrames && event.stackTrace.body.stackFrames[0].id) ||
+                    (event.stackTrace &&
+                        event.stackTrace.body.stackFrames &&
+                        event.stackTrace.body.stackFrames[0].id) ||
                     undefined;
                 this.handler.onStopped(session, frameId);
                 break;
@@ -414,7 +418,7 @@ export class RTOSTracker implements DebugEventHandler {
                         'Please report issues and/or contribute code/knowledge to add your RTOS</p>\n';
                 } else {
                     ret.html +=
-            /*html*/ '<p>RTOS Views: Try refreshing this panel. RTOS detection may be still in progress</p>\n';
+                        /*html*/ '<p>RTOS Views: Try refreshing this panel. RTOS detection may be still in progress</p>\n';
                 }
             } else {
                 const nameAndStatus =

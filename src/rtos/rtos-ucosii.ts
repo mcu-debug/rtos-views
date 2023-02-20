@@ -17,20 +17,48 @@ enum DisplayFields {
 }
 
 const RTOSUCOS2Items: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
-RTOSUCOS2Items[DisplayFields[DisplayFields.ID]] = { width: 1, headerRow1: '', headerRow2: 'ID', colType: RTOSCommon.ColTypeEnum.colTypeNumeric };
-RTOSUCOS2Items[DisplayFields[DisplayFields.Address]] = { width: 2, headerRow1: '', headerRow2: 'Address', colGapBefore: 1 };
-RTOSUCOS2Items[DisplayFields[DisplayFields.TaskName]] = { width: 4, headerRow1: '', headerRow2: 'Name', colGapBefore: 1 };
+RTOSUCOS2Items[DisplayFields[DisplayFields.ID]] = {
+    width: 1,
+    headerRow1: '',
+    headerRow2: 'ID',
+    colType: RTOSCommon.ColTypeEnum.colTypeNumeric
+};
+RTOSUCOS2Items[DisplayFields[DisplayFields.Address]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'Address',
+    colGapBefore: 1
+};
+RTOSUCOS2Items[DisplayFields[DisplayFields.TaskName]] = {
+    width: 4,
+    headerRow1: '',
+    headerRow2: 'Name',
+    colGapBefore: 1
+};
 RTOSUCOS2Items[DisplayFields[DisplayFields.Status]] = {
-    width: 4, headerRow1: 'Thread', headerRow2: 'Status', colType: RTOSCommon.ColTypeEnum.colTypeCollapse
+    width: 4,
+    headerRow1: 'Thread',
+    headerRow2: 'Status',
+    colType: RTOSCommon.ColTypeEnum.colTypeCollapse
 };
 RTOSUCOS2Items[DisplayFields[DisplayFields.Priority]] = {
-    width: 1, headerRow1: 'Prio', headerRow2: 'rity', colType: RTOSCommon.ColTypeEnum.colTypeNumeric, colGapAfter: 1
+    width: 1,
+    headerRow1: 'Prio',
+    headerRow2: 'rity',
+    colType: RTOSCommon.ColTypeEnum.colTypeNumeric,
+    colGapAfter: 1
 }; // 3 are enough but 4 aligns better with header text
 RTOSUCOS2Items[DisplayFields[DisplayFields.StackPercent]] = {
-    width: 4, headerRow1: 'Stack Usage', headerRow2: '% (Used B / Size B)', colType: RTOSCommon.ColTypeEnum.colTypePercentage
+    width: 4,
+    headerRow1: 'Stack Usage',
+    headerRow2: '% (Used B / Size B)',
+    colType: RTOSCommon.ColTypeEnum.colTypePercentage
 };
 RTOSUCOS2Items[DisplayFields[DisplayFields.StackPeakPercent]] = {
-    width: 4, headerRow1: 'Stack Peak Usage', headerRow2: '% (Peak B / Size B)', colType: RTOSCommon.ColTypeEnum.colTypePercentage
+    width: 4,
+    headerRow1: 'Stack Peak Usage',
+    headerRow2: '% (Peak B / Size B)',
+    colType: RTOSCommon.ColTypeEnum.colTypePercentage
 };
 
 const DisplayFieldNames: string[] = Object.keys(RTOSUCOS2Items);
@@ -95,8 +123,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 this.status = 'initialized';
             }
             return this;
-        }
-        catch (e) {
+        } catch (e) {
             if (e instanceof RTOSCommon.ShouldRetry) {
                 console.error(e.message);
             } else {
@@ -117,20 +144,23 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 let ret: string = '';
 
                 if (!thInfo['OSTCBTaskName']?.val) {
-                    ret += `Thread name missing: Enable macro ${strong('OS_TASK_NAME_EN')} and use ${strong('OSTaskNameSet')} in FW<br><br>`;
+                    ret += `Thread name missing: Enable macro ${strong('OS_TASK_NAME_EN')} and use
+                    ${strong('OSTaskNameSet')} in FW<br><br>`;
                 }
                 if (!thInfo['OSTCBId']?.val || !th.stackInfo.stackSize) {
-                    ret += `Thread ID & Stack Size & Peak missing: Enable macro ${strong('OS_TASK_CREATE_EXT_EN')} and`
-                        + `use ${strong('OSTaskCreateExt')} in FW<br><br>`;
+                    ret +=
+                        `Thread ID & Stack Size & Peak missing: Enable macro ${strong('OS_TASK_CREATE_EXT_EN')} and` +
+                        `use ${strong('OSTaskCreateExt')} in FW<br><br>`;
                 }
 
                 if (ret) {
-                    ret += 'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
-                    this.helpHtml = '<button class="help-button">Hints to get more out of the uC/OS-II RTOS View</button>\n' +
+                    ret +=
+                        'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
+                    this.helpHtml =
+                        '<button class="help-button">Hints to get more out of the uC/OS-II RTOS View</button>\n' +
                         `<div class="help"><p>\n${ret}\n</p></div>\n`;
                 }
-            }
-            catch (e) {
+            } catch (e) {
                 console.log(e);
             }
         }
@@ -145,75 +175,86 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
 
             const timer = new RTOSCommon.HrTimer();
             this.stale = true;
-            this.timeInfo = (new Date()).toISOString();
+            this.timeInfo = new Date().toISOString();
 
             // OSRunning & OSTaskCtr can go invalid anytime. Like when a reset/restart happens
             this.OSTaskCtrVal = Number.MAX_SAFE_INTEGER;
             this.OSRunningVal = Number.MAX_SAFE_INTEGER;
             this.foundThreads = [];
 
-            this.OSRunning?.getValue(frameId).then(async (str) => {
-                try {
-                    this.OSRunningVal = str ? parseInt(str) : 0;
+            this.OSRunning?.getValue(frameId).then(
+                async (str) => {
+                    try {
+                        this.OSRunningVal = str ? parseInt(str) : 0;
 
-                    if (0 !== this.OSRunningVal) {
-                        const count = await this.OSTaskCtr?.getValue(frameId);
-                        this.OSTaskCtrVal = count ? parseInt(count) : Number.MAX_SAFE_INTEGER;
+                        if (0 !== this.OSRunningVal) {
+                            const count = await this.OSTaskCtr?.getValue(frameId);
+                            this.OSTaskCtrVal = count ? parseInt(count) : Number.MAX_SAFE_INTEGER;
 
-                        if ((this.OSTaskCtrVal > 0) && (this.OSTaskCtrVal <= this.maxThreads)) {
+                            if (this.OSTaskCtrVal > 0 && this.OSTaskCtrVal <= this.maxThreads) {
+                                const OSTCBListVal = await this.OSTCBList?.getValue(frameId);
+                                if (OSTCBListVal && 0 !== parseInt(OSTCBListVal)) {
+                                    if (this.stackEntrySize === 0) {
+                                        /* Only get stack entry size once per session */
+                                        const stackEntrySizeRef = await this.getExprVal('sizeof(OS_STK)', frameId);
+                                        this.stackEntrySize = parseInt(stackEntrySizeRef || '');
+                                    }
 
-                            const OSTCBListVal = await this.OSTCBList?.getValue(frameId);
-                            if (OSTCBListVal && (0 !== parseInt(OSTCBListVal))) {
+                                    const osFlagTblVal = this.OSFlagTbl
+                                        ? await this.OSFlagTbl.getVarChildren(frameId)
+                                        : [];
+                                    const flagPendMap = await this.getPendingFlagGroupsForTasks(osFlagTblVal, frameId);
 
-                                if (this.stackEntrySize === 0) {
-                                    /* Only get stack entry size once per session */
-                                    const stackEntrySizeRef = await this.getExprVal('sizeof(OS_STK)', frameId);
-                                    this.stackEntrySize = parseInt(stackEntrySizeRef || '');
+                                    const tmpOSTCBCurVal = await this.OSTCBCur?.getValue(frameId);
+                                    this.OSTCBCurVal = tmpOSTCBCurVal
+                                        ? parseInt(tmpOSTCBCurVal)
+                                        : Number.MAX_SAFE_INTEGER;
+
+                                    await this.getThreadInfo(this.OSTCBList, flagPendMap, frameId);
+
+                                    if (this.foundThreads[0].display['ID'].text !== '???') {
+                                        this.foundThreads.sort(
+                                            (a, b) => parseInt(a.display['ID'].text) - parseInt(b.display['ID'].text)
+                                        );
+                                    } else {
+                                        this.foundThreads.sort(
+                                            (a, b) =>
+                                                parseInt(a.display['Address'].text) -
+                                                parseInt(b.display['Address'].text)
+                                        );
+                                    }
                                 }
-
-                                const osFlagTblVal = this.OSFlagTbl ? await this.OSFlagTbl.getVarChildren(frameId) : [];
-                                const flagPendMap = await this.getPendingFlagGroupsForTasks(osFlagTblVal, frameId);
-
-                                const tmpOSTCBCurVal = await this.OSTCBCur?.getValue(frameId);
-                                this.OSTCBCurVal = tmpOSTCBCurVal ? parseInt(tmpOSTCBCurVal) : Number.MAX_SAFE_INTEGER;
-
-                                await this.getThreadInfo(this.OSTCBList, flagPendMap, frameId);
-
-                                if (this.foundThreads[0].display['ID'].text !== '???') {
-                                    this.foundThreads.sort((a, b) => parseInt(a.display['ID'].text) - parseInt(b.display['ID'].text));
-                                }
-                                else {
-                                    this.foundThreads.sort((a, b) => parseInt(a.display['Address'].text) - parseInt(b.display['Address'].text));
-                                }
+                                this.finalThreads = [...this.foundThreads];
+                            } else {
+                                this.finalThreads = [];
                             }
-                            this.finalThreads = [...this.foundThreads];
-                        }
-                        else {
+                        } else {
                             this.finalThreads = [];
                         }
-                    }
-                    else {
-                        this.finalThreads = [];
-                    }
 
-                    this.stale = false;
-                    this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
+                        this.stale = false;
+                        this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
+                        resolve();
+                    } catch (e) {
+                        resolve();
+                        console.error('RTOSUCOS2.refresh() failed: ', e);
+                    }
+                },
+                (reason) => {
                     resolve();
+                    console.error('RTOSUCOS2.refresh() failed: ', reason);
                 }
-                catch (e) {
-                    resolve();
-                    console.error('RTOSUCOS2.refresh() failed: ', e);
-                }
-            }, (reason) => {
-                resolve();
-                console.error('RTOSUCOS2.refresh() failed: ', reason);
-            });
+            );
         });
     }
 
-    private getThreadInfo(tcbListEntry: RTOSCommon.RTOSVarHelperMaybe, flagPendMap: Map<number, FlagGroup[]>, frameId: number): Promise<void> {
+    private getThreadInfo(
+        tcbListEntry: RTOSCommon.RTOSVarHelperMaybe,
+        flagPendMap: Map<number, FlagGroup[]>,
+        frameId: number
+    ): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (!tcbListEntry || !tcbListEntry.varReference || (this.foundThreads.length >= this.OSTaskCtrVal)) {
+            if (!tcbListEntry || !tcbListEntry.varReference || this.foundThreads.length >= this.OSTaskCtrVal) {
                 resolve();
                 return;
             }
@@ -223,90 +264,111 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 return;
             }
 
-            tcbListEntry.getVarChildrenObj(frameId).then(async (obj: RTOSCommon.RTOSStrToValueMap) => {
-                try {
-                    let curTaskObj = obj;
-                    let thAddress = parseInt(tcbListEntry?.value || '');
+            tcbListEntry.getVarChildrenObj(frameId).then(
+                async (obj: RTOSCommon.RTOSStrToValueMap) => {
+                    try {
+                        let curTaskObj = obj;
+                        let thAddress = parseInt(tcbListEntry?.value || '');
 
-                    let threadCount = 1;
+                        let threadCount = 1;
 
-                    do {
-                        const threadId = curTaskObj['OSTCBId']?.val;
+                        do {
+                            const threadId = curTaskObj['OSTCBId']?.val;
 
-                        let thName = '???';
-                        if (curTaskObj['OSTCBTaskName']) {
-                            const tmpThName = await this.getExprVal('(char *)' + curTaskObj['OSTCBTaskName']?.exp, frameId) || '';
-                            const matchName = tmpThName.match(/"([^*]*)"$/);
-                            thName = matchName ? matchName[1] : tmpThName;
-                        }
+                            let thName = '???';
+                            if (curTaskObj['OSTCBTaskName']) {
+                                const tmpThName = await this.getExprVal('(char *)' + curTaskObj['OSTCBTaskName']?.exp, frameId) || '';
+                                const matchName = tmpThName.match(/"([^*]*)"$/);
+                                thName = matchName ? matchName[1] : tmpThName;
+                            }
 
-                        const threadRunning = (thAddress === this.OSTCBCurVal);
-                        const thStateObject = (await this.analyzeTaskState(thAddress, curTaskObj, flagPendMap, frameId));
-                        const thState = thStateObject.describe();
+                            const threadRunning = thAddress === this.OSTCBCurVal;
+                            const thStateObject = await this.analyzeTaskState(
+                                thAddress,
+                                curTaskObj,
+                                flagPendMap,
+                                frameId
+                            );
+                            const thState = thStateObject.describe();
 
-                        const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern, frameId);
+                            const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern, frameId);
 
-                        const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
-                        const mySetter = (x: DisplayFields, text: string, value?: any) => {
-                            display[DisplayFieldNames[x]] = { text, value };
-                        };
+                            const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
+                            const mySetter = (x: DisplayFields, text: string, value?: any) => {
+                                display[DisplayFieldNames[x]] = { text, value };
+                            };
 
-                        mySetter(DisplayFields.ID, (threadId ? parseInt(threadId).toString() : '???'));
-                        mySetter(DisplayFields.Address, RTOSCommon.hexFormat(thAddress));
-                        mySetter(DisplayFields.TaskName, thName);
-                        mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : thState, thStateObject.fullData());
-                        mySetter(DisplayFields.Priority, parseInt(curTaskObj['OSTCBPrio']?.val).toString());
+                            mySetter(DisplayFields.ID, threadId ? parseInt(threadId).toString() : '???');
+                            mySetter(DisplayFields.Address, RTOSCommon.hexFormat(thAddress));
+                            mySetter(DisplayFields.TaskName, thName);
+                            mySetter(
+                                DisplayFields.Status,
+                                threadRunning ? 'RUNNING' : thState,
+                                thStateObject.fullData()
+                            );
+                            mySetter(DisplayFields.Priority, parseInt(curTaskObj['OSTCBPrio']?.val).toString());
 
-                        if ((stackInfo.stackUsed !== undefined) && (stackInfo.stackSize !== undefined)) {
-                            const stackPercentVal = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
-                            const stackPercentText = `${stackPercentVal} % (${stackInfo.stackUsed} / ${stackInfo.stackSize})`;
-                            mySetter(DisplayFields.StackPercent, stackPercentText, stackPercentVal);
-                        }
-                        else {
-                            mySetter(DisplayFields.StackPercent, '?? %');
-                        }
+                            if (stackInfo.stackUsed !== undefined && stackInfo.stackSize !== undefined) {
+                                const stackPercentVal = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
+                                const stackPercentText = `${stackPercentVal} % (${stackInfo.stackUsed} / ${stackInfo.stackSize})`;
+                                mySetter(DisplayFields.StackPercent, stackPercentText, stackPercentVal);
+                            } else {
+                                mySetter(DisplayFields.StackPercent, '?? %');
+                            }
 
-                        if ((stackInfo.stackPeak !== undefined) && (stackInfo.stackSize !== undefined)) {
-                            const stackPeakPercentVal = Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100);
-                            const stackPeakPercentText = `${stackPeakPercentVal.toString().padStart(3)} % (${stackInfo.stackPeak} / ${stackInfo.stackSize})`;
-                            mySetter(DisplayFields.StackPeakPercent, stackPeakPercentText, stackPeakPercentVal);
-                        }
-                        else {
-                            mySetter(DisplayFields.StackPeakPercent, '?? %');
-                        }
+                            if (stackInfo.stackPeak !== undefined && stackInfo.stackSize !== undefined) {
+                                const stackPeakPercentVal =
+                                    Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100);
+                                const stackPeakPercentText = `${stackPeakPercentVal.toString().padStart(3)} %` +
+                                    ` (${stackInfo.stackPeak} / ${stackInfo.stackSize})`;
+                                mySetter(DisplayFields.StackPeakPercent, stackPeakPercentText, stackPeakPercentVal);
+                            } else {
+                                mySetter(DisplayFields.StackPeakPercent, '?? %');
+                            }
 
-                        const thread: RTOSCommon.RTOSThreadInfo = {
-                            display: display, stackInfo: stackInfo, running: threadRunning
-                        };
-                        this.foundThreads.push(thread);
-                        this.createHmlHelp(thread, curTaskObj);
+                            const thread: RTOSCommon.RTOSThreadInfo = {
+                                display: display,
+                                stackInfo: stackInfo,
+                                running: threadRunning
+                            };
+                            this.foundThreads.push(thread);
+                            this.createHmlHelp(thread, curTaskObj);
 
-                        thAddress = parseInt(curTaskObj['OSTCBNext']?.val);
-                        if (0 !== thAddress) {
-                            const nextThreadObj = await this.getVarChildrenObj(curTaskObj['OSTCBNext']?.ref, 'OSTCBNext');
-                            curTaskObj = nextThreadObj || {};
-                            threadCount++;
-                        }
+                            thAddress = parseInt(curTaskObj['OSTCBNext']?.val);
+                            if (0 !== thAddress) {
+                                const nextThreadObj = await this.getVarChildrenObj(
+                                    curTaskObj['OSTCBNext']?.ref,
+                                    'OSTCBNext'
+                                );
+                                curTaskObj = nextThreadObj || {};
+                                threadCount++;
+                            }
 
-                        if (threadCount > this.OSTaskCtrVal) {
-                            console.log('RTOSUCOS2.getThreadInfo() detected more threads in OSTCBCur linked list that OSTaskCtr states');
-                            break;
-                        }
+                            if (threadCount > this.OSTaskCtrVal) {
+                                console.log(
+                                    'RTOSUCOS2.getThreadInfo() detected more threads in OSTCBCur linked list that OSTaskCtr states'
+                                );
+                                break;
+                            }
+                        } while (0 !== thAddress);
 
-                    } while (0 !== thAddress);
-
-                    resolve();
+                        resolve();
+                    } catch (e) {
+                        console.log('RTOSUCOS2.getThreadInfo() error', e);
+                    }
+                },
+                (e) => {
+                    reject(e);
                 }
-                catch (e) {
-                    console.log('RTOSUCOS2.getThreadInfo() error', e);
-                }
-            }, (e) => {
-                reject(e);
-            });
+            );
         });
     }
 
-    protected async getEventInfo(address: number, eventObject: RTOSCommon.RTOSStrToValueMap, _frameId: number): Promise<EventInfo> {
+    protected async getEventInfo(
+        address: number,
+        eventObject: RTOSCommon.RTOSStrToValueMap,
+        _frameId: number
+    ): Promise<EventInfo> {
         const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType']?.val) };
 
         if (eventObject['OSEventName']?.val) {
@@ -321,7 +383,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     protected async readEventArray(baseAddress: number, frameId: number): Promise<EventInfo[]> {
         const result = [];
         for (let eventIndex = 0; ; eventIndex++) {
-            const eventAddress = parseInt(await this.getExprVal(`((OS_EVENT**)(${baseAddress}))[${eventIndex}]`, frameId) || '');
+            const eventAddress = parseInt(
+                (await this.getExprVal(`((OS_EVENT**)(${baseAddress}))[${eventIndex}]`, frameId)) || ''
+            );
             if (eventAddress === 0) {
                 break;
             } else {
@@ -332,11 +396,18 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         return result;
     }
 
-    protected async analyzeTaskState(threadAddr: number, curTaskObj: any, flagPendMap: Map<number, FlagGroup[]>, frameId: number): Promise<TaskState> {
+    protected async analyzeTaskState(
+        threadAddr: number,
+        curTaskObj: any,
+        flagPendMap: Map<number, FlagGroup[]>,
+        frameId: number
+    ): Promise<TaskState> {
         const state = parseInt(curTaskObj['OSTCBStat']?.val);
         switch (state) {
-            case OsTaskState.READY: return new TaskReady();
-            case OsTaskState.SUSPENDED: return new TaskSuspended();
+            case OsTaskState.READY:
+                return new TaskReady();
+            case OsTaskState.SUSPENDED:
+                return new TaskSuspended();
             default: {
                 const resultState = new TaskPending();
                 PendingTaskStates.forEach((candidateState) => {
@@ -357,14 +428,18 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 if (curTaskObj['OSTCBEventMultiPtr']?.val) {
                     const eventMultiBaseAddress = parseInt(curTaskObj['OSTCBEventMultiPtr']?.val);
                     if (eventMultiBaseAddress !== 0) {
-                        (await this.readEventArray(eventMultiBaseAddress, frameId)).forEach(
-                            (eventInfo) => resultState.addEvent(eventInfo)
+                        (await this.readEventArray(eventMultiBaseAddress, frameId)).forEach((eventInfo) =>
+                            resultState.addEvent(eventInfo)
                         );
                     }
                 }
                 if (flagPendMap.has(threadAddr)) {
                     flagPendMap.get(threadAddr)?.forEach((flagGroup) =>
-                        resultState.addEvent({ name: flagGroup.name, eventType: OsEventType.Flag, address: flagGroup.address })
+                        resultState.addEvent({
+                            name: flagGroup.name,
+                            eventType: OsEventType.Flag,
+                            address: flagGroup.address,
+                        })
                     );
                 }
                 return resultState;
@@ -372,7 +447,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected async getPendingFlagGroupsForTasks(osFlagTable: DebugProtocol.Variable[], frameId: number): Promise<Map<number, FlagGroup[]>> {
+    protected async getPendingFlagGroupsForTasks(
+        osFlagTable: DebugProtocol.Variable[],
+        frameId: number
+    ): Promise<Map<number, FlagGroup[]>> {
         // Builds a map from task IDs to flag groups that the tasks are pending on
         const result: Map<number, FlagGroup[]> = new Map();
         for (const flagGroupPtr of osFlagTable) {
@@ -380,7 +458,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 const osFlagGrp = await this.getVarChildrenObj(flagGroupPtr.variablesReference, flagGroupPtr.name);
                 // Check if we are looking at an initialized flag group
                 if (osFlagGrp && parseInt(osFlagGrp['OSFlagType']?.val) === OsEventType.Flag) {
-                    const groupAddr = parseInt(await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId) || '');
+                    const groupAddr = parseInt(
+                        (await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId)) || ''
+                    );
                     const flagGroup: FlagGroup = { address: groupAddr };
                     const reprValue = osFlagGrp['OSFlagName']?.val;
                     if (reprValue) {
@@ -389,7 +469,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     }
 
                     // Follow the linked list of flag group nodes. The cast is safe here because we checked OSFlagType before
-                    let flagNode = await this.getExprValChildrenObj(`(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList']?.exp})`, frameId);
+                    let flagNode = await this.getExprValChildrenObj(
+                        `(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList']?.exp})`,
+                        frameId
+                    );
                     while (flagNode) {
                         const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB']?.val || '');
                         if (!waitingTcbAddr || waitingTcbAddr === 0) {
@@ -406,7 +489,10 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                             break;
                         } else {
                             // Need to cast here since the next pointer is declared as void *
-                            flagNode = await this.getExprValChildrenObj(`(OS_FLAG_NODE *) ${nextFlagNodeAddr}`, frameId);
+                            flagNode = await this.getExprValChildrenObj(
+                                `(OS_FLAG_NODE *) ${nextFlagNodeAddr}`,
+                                frameId
+                            );
                         }
                     }
                 }
@@ -449,8 +535,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 const stackDelta = stackInfo.stackStart - stackInfo.stackTop;
                 stackInfo.stackFree = stackInfo.stackSize - stackDelta;
                 stackInfo.stackUsed = stackDelta;
-            }
-            else {
+            } else {
                 const stackDelta = stackInfo.stackTop - stackInfo.stackStart;
                 stackInfo.stackFree = stackDelta;
                 stackInfo.stackUsed = stackInfo.stackSize - stackDelta;
@@ -476,8 +561,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                     peak++;
                 }
                 stackInfo.stackPeak = stackInfo.stackSize - peak;
-            }
-            catch (e) {
+            } catch (e) {
                 console.log(e);
             }
         }
@@ -487,9 +571,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
 
     public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
     public getHTML(): RTOSCommon.HtmlInfo {
-        const htmlContent: RTOSCommon.HtmlInfo = {
-            html: '', css: ''
-        };
+        const htmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
         // WARNING: This stuff is super fragile. Once we know how this works, then we should refactor this
         let msg = '';
         if (this.status === 'none') {
@@ -505,14 +587,15 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 msg = ` uC/OS-II variable OSTaskCtr = ${this.OSTaskCtrVal} seems invalid`;
                 lastHtmlInfo.html = '';
                 lastHtmlInfo.css = '';
-            } else if (lastHtmlInfo.html) { // TODO check if this check is ok
+            } else if (lastHtmlInfo.html) {
+                // TODO check if this condition is ok
                 msg = ' Following info from last query may be stale.';
             }
 
             htmlContent.html = `<p>Unable to collect full RTOS information.${msg}</p>\n` + lastHtmlInfo.html;
             htmlContent.css = lastHtmlInfo.css;
             return htmlContent;
-        } else if ((this.OSTaskCtrVal !== Number.MAX_SAFE_INTEGER) && (this.finalThreads.length !== this.OSTaskCtrVal)) {
+        } else if (this.OSTaskCtrVal !== Number.MAX_SAFE_INTEGER && this.finalThreads.length !== this.OSTaskCtrVal) {
             msg += `<p>Expecting ${this.OSTaskCtrVal} threads, found ${this.finalThreads.length}. Thread data may be unreliable<p>\n`;
         } else if (this.finalThreads.length === 0) {
             htmlContent.html = `<p>No ${this.name} threads detected, perhaps RTOS not yet initialized or tasks yet to be created!</p>\n`;
@@ -539,11 +622,13 @@ enum OsTaskState {
     PEND_FLAGGROUP = 0x20
 }
 
-const PendingTaskStates = [OsTaskState.PEND_SEMAPHORE,
-OsTaskState.PEND_MAILBOX,
-OsTaskState.PEND_QUEUE,
-OsTaskState.PEND_MUTEX,
-OsTaskState.PEND_FLAGGROUP] as const;
+const PendingTaskStates = [
+    OsTaskState.PEND_SEMAPHORE,
+    OsTaskState.PEND_MAILBOX,
+    OsTaskState.PEND_QUEUE,
+    OsTaskState.PEND_MUTEX,
+    OsTaskState.PEND_FLAGGROUP
+] as const;
 
 enum OsEventType {
     Mailbox = 1,
@@ -555,12 +640,18 @@ enum OsEventType {
 
 function getEventTypeForTaskState(state: OsTaskState): OsEventType {
     switch (state) {
-        case OsTaskState.PEND_SEMAPHORE: return OsEventType.Semaphore;
-        case OsTaskState.PEND_MAILBOX: return OsEventType.Mailbox;
-        case OsTaskState.PEND_QUEUE: return OsEventType.Queue;
-        case OsTaskState.PEND_MUTEX: return OsEventType.Mutex;
-        case OsTaskState.PEND_FLAGGROUP: return OsEventType.Flag;
-        default: return OsEventType.Flag;   // Should not happen, but we need something for lint
+        case OsTaskState.PEND_SEMAPHORE:
+            return OsEventType.Semaphore;
+        case OsTaskState.PEND_MAILBOX:
+            return OsEventType.Mailbox;
+        case OsTaskState.PEND_QUEUE:
+            return OsEventType.Queue;
+        case OsTaskState.PEND_MUTEX:
+            return OsEventType.Mutex;
+        case OsTaskState.PEND_FLAGGROUP:
+            return OsEventType.Flag;
+        default:
+            return OsEventType.Flag; // Should not happen, but we need something for lint
     }
 }
 
@@ -655,7 +746,6 @@ interface EventInfo {
 }
 
 function describeEvent(event: EventInfo): string {
-
     if (event.name && event.name !== '?') {
         return event.name;
     } else {
