@@ -400,7 +400,14 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                             mySetter(DisplayFields.StackSize, func(stackInfo.stackSize));
                             mySetter(DisplayFields.StackUsed, func(stackInfo.stackUsed));
                             mySetter(DisplayFields.StackFree, func(stackInfo.stackFree));
-                            mySetter(DisplayFields.StackPeak, func(stackInfo.stackPeak));
+
+                            if (RTOSCommon.RTOSBase.disableStackPeaks) {
+                                mySetter(DisplayFields.StackPeak, '---');
+                            }
+                            else {
+                                mySetter(DisplayFields.StackPeak, func(stackInfo.stackPeak));
+                            }
+
                             if (thInfo['ulRunTimeCounter']?.val && this.ulTotalRunTimeVal) {
                                 const tmp = (parseInt(thInfo['ulRunTimeCounter']?.val) / this.ulTotalRunTimeVal) * 100;
                                 mySetter(DisplayFields.Runtime, tmp.toFixed(2).padStart(5, '0') + '%');

@@ -322,6 +322,8 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                                 const stackPeakPercentText = `${stackPeakPercentVal.toString().padStart(3)} %` +
                                     ` (${stackInfo.stackPeak} / ${stackInfo.stackSize})`;
                                 mySetter(DisplayFields.StackPeakPercent, stackPeakPercentText, stackPeakPercentVal);
+                            } else if (RTOSCommon.RTOSBase.disableStackPeaks) {
+                                mySetter(DisplayFields.StackPeakPercent, '----');
                             } else {
                                 mySetter(DisplayFields.StackPeakPercent, '?? %');
                             }
@@ -541,28 +543,30 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 stackInfo.stackUsed = stackInfo.stackSize - stackDelta;
             }
 
-            /* check stack peak */
-            const memArg: DebugProtocol.ReadMemoryArguments = {
-                memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackTop, stackInfo.stackEnd)),
-                count: stackInfo.stackFree
-            };
-            try {
-                const stackData = await this.session.customRequest('readMemory', memArg);
-                const buf = Buffer.from(stackData.data, 'base64');
-                stackInfo.bytes = new Uint8Array(buf);
-                let start = this.stackIncrements < 0 ? 0 : stackInfo.bytes.length - 1;
-                const end = this.stackIncrements < 0 ? stackInfo.bytes.length : -1;
-                let peak = 0;
-                while (start !== end) {
-                    if (stackInfo.bytes[start] !== stackPattern) {
-                        break;
+            if (!RTOSCommon.RTOSBase.disableStackPeaks) {
+                /* check stack peak */
+                const memArg: DebugProtocol.ReadMemoryArguments = {
+                    memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackTop, stackInfo.stackEnd)),
+                    count: stackInfo.stackFree
+                };
+                try {
+                    const stackData = await this.session.customRequest('readMemory', memArg);
+                    const buf = Buffer.from(stackData.data, 'base64');
+                    stackInfo.bytes = new Uint8Array(buf);
+                    let start = this.stackIncrements < 0 ? 0 : stackInfo.bytes.length - 1;
+                    const end = this.stackIncrements < 0 ? stackInfo.bytes.length : -1;
+                    let peak = 0;
+                    while (start !== end) {
+                        if (stackInfo.bytes[start] !== stackPattern) {
+                            break;
+                        }
+                        start -= this.stackIncrements;
+                        peak++;
                     }
-                    start -= this.stackIncrements;
-                    peak++;
+                    stackInfo.stackPeak = stackInfo.stackSize - peak;
+                } catch (e) {
+                    console.log(e);
                 }
-                stackInfo.stackPeak = stackInfo.stackSize - peak;
-            } catch (e) {
-                console.log(e);
             }
         }
 
