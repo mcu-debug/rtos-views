@@ -573,9 +573,11 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 stackInfo.stackUsed = Math.max(0, stackInfo.stackSize - stackInfo.stackFree);
             }
 
-            // get stack peak
-            const unused = await this.scanStackUnused(stackInfo.stackTop, stackInfo.stackEnd, stackInfo.stackFree);
-            stackInfo.stackPeak = this.getStackPeak(stackInfo, unused);
+            if (!RTOSCommon.RTOSBase.disableStackPeaks) {
+                // get stack peak
+                const unused = await this.scanStackUnused(stackInfo.stackTop, stackInfo.stackEnd, stackInfo.stackFree);
+                stackInfo.stackPeak = this.getStackPeak(stackInfo, unused);
+            }
         }
 
         return stackInfo;
