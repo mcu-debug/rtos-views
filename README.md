@@ -25,10 +25,10 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 
 # Contributors and maintainers
 
-| RTOS           | Contributor     |
-| -------------- | --------------- |
-| FreeRTOS       | @haneefdm       |
-| uC/OS-II       | @PhilippHaefele |
-| embOS          | @PhilippHaefele |
-| Zephyr (beta)  | @PhilippHaefele |
-| ChibiOS (beta) | @vrepetenko VR  |
+| RTOS           | Contributor            |
+| -------------- | ---------------------- |
+| FreeRTOS       | @haneefdm              |
+| uC/OS-II       | @PhilippHaefele @mayjs |
+| embOS          | @PhilippHaefele        |
+| Zephyr (beta)  | @PhilippHaefele        |
+| ChibiOS (beta) | @vrepetenko VR         |
