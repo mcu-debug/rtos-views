@@ -2,8 +2,9 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.2",
+    "version": "0.0.5",
     "publisher": "mcu-debug",
+    "preview": true,
     "repository": {
         "type": "git",
         "url": "https://github.com/mcu-debug/rtos-views"
@@ -12,7 +13,7 @@
         "url": "https://github.com/mcu-debug/rtos-views/issues"
     },
     "engines": {
-        "vscode": "^1.69.0"
+        "vscode": "^1.75.0"
     },
     "categories": [
         "Other"
@@ -37,7 +38,7 @@
             {
                 "category": "RTOS Views",
                 "command": "mcu-debug.rtos-views.helloWorld",
-                "title": "Hello World"
+                "title": "Hello World Test"
             },
             {
                 "category": "RTOS Views",
@@ -51,11 +52,20 @@
                 "title": "Toggle RTOS Panel"
             }
         ],
-        "properties": {
-            "mcu-debug.rtos-views.showRTOS": {
-                "type": "boolean",
-                "default": true,
-                "description": "Enable/Disable display of RTOS panel"
+        "configuration": {
+            "type": "object",
+            "title": "rtos-views",
+            "properties": {
+                "mcu-debug.rtos-views.showRTOS": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable/Disable RTOS tracking"
+                },
+                "mcu-debug.rtos-views.disableStackPeaks": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Determining stack peaks requires that stack memory be read to determine a high water mark. Stack peaks are useful but can be expensive in runtime."
+                }
             }
         },
         "viewsContainers": {
@@ -109,12 +119,13 @@
         "@types/glob": "^8.0.0",
         "@types/mocha": "^10.0.0",
         "@types/node": "16.x",
-        "@types/vscode": "^1.69.0",
+        "@types/vscode": "^1.75.0",
         "@typescript-eslint/eslint-plugin": "^5.38.1",
         "@typescript-eslint/parser": "^5.38.1",
         "@vscode/test-electron": "^2.1.5",
         "esbuild": "^0.14.53",
         "eslint": "^8.24.0",
+        "eslint-config-prettier": "^8.5.0",
         "glob": "^8.0.3",
         "mocha": "^10.0.0",
         "ts-loader": "^9.4.1",
@@ -123,9 +134,9 @@
         "webpack-cli": "^4.10.0"
     },
     "dependencies": {
-        "@vscode/debugprotocol": "^1.57.0",
+        "@vscode/debugprotocol": "^1.59.0",
         "@vscode/webview-ui-toolkit": "^1.1.0",
-        "debug-tracker-vscode": "^0.0.12"
+        "debug-tracker-vscode": "^0.0.14"
     },
     "extensionDependencies": [
         "mcu-debug.debug-tracker-vscode"

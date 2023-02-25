@@ -1,4 +1,3 @@
-import { DebugProtocol } from '@vscode/debugprotocol';
 import * as vscode from 'vscode';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -8,6 +7,7 @@ import { RTOSFreeRTOS } from './rtos-freertos';
 import { RTOSUCOS2 } from './rtos-ucosii';
 import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
+import { RTOSZEPHYR } from './rtos-zephyr';
 
 import {
     IDebugTracker,
@@ -16,14 +16,14 @@ import {
     IDebuggerSubscription,
     OtherDebugEvents,
     DebugSessionStatus,
-    DebugTracker
+    DebugTracker,
 } from 'debug-tracker-vscode';
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const TrackedDebuggers = [
     'cortex-debug',
-    'cppdbg',       // Microsoft debugger
-    'cspy'          // IAR debugger
+    'cppdbg', // Microsoft debugger
+    'cspy', // IAR debugger
 ];
 
 let trackerApi: IDebugTracker;
@@ -31,12 +31,14 @@ let trackerApiClientInfo: IDebuggerSubscription;
 
 const RTOS_TYPES = {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    'FreeRTOS': RTOSFreeRTOS,
+    FreeRTOS: RTOSFreeRTOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'uC/OS-II': RTOSUCOS2,
-    'embOS': RTOSEmbOS,
+    embOS: RTOSEmbOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    'ChibiOS': RTOSChibiOS
+    ChibiOS: RTOSChibiOS,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    Zephyr: RTOSZEPHYR,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -57,11 +59,12 @@ export class RTOSSession {
 
     // This is the work horse. Do not call it if the panel is in disabled state.
     public async onStopped(frameId: number): Promise<void> {
-        return new Promise<void>(async (resolve, reject) => {
+        return new Promise<void>((resolve) => {
             this.lastFrameId = frameId;
             const doRefresh = () => {
                 if (this.rtos) {
-                    this.htmlContent.html = '<p>RTOS Views: Failed to get RTOS information. Please report an issue if RTOS is actually running</p>\n';
+                    this.htmlContent.html =
+                        '<p>RTOS Views: Failed to get RTOS information. Please report an issue if RTOS is actually running</p>\n';
                     this.htmlContent.css = '';
                     this.rtos.onStopped(frameId).then(() => {
                         this.htmlContent = this.rtos?.getHTML() || defaultHtmlInfo;
@@ -146,9 +149,10 @@ interface DebugEventHandler {
 
 class MyDebugTracker {
     constructor(public context: vscode.ExtensionContext, protected handler: DebugEventHandler) {
-        context.subscriptions.push(
+        context.subscriptions
+            .push
             // vscode.workspace.onDidChangeConfiguration(this.settingsChanged.bind(this))
-        );
+            ();
         // this.updateTrackedDebuggersFromSettings();
         this.subscribeToTracker();
     }
@@ -158,7 +162,7 @@ class MyDebugTracker {
     }
 
     private subscribeToTracker(): Promise<boolean> {
-        return new Promise<boolean>(async (resolve) => {
+        return new Promise<boolean>((resolve) => {
             DebugTracker.getTrackerExtension('rtos-views').then((ret) => {
                 if (ret instanceof Error) {
                     vscode.window.showErrorMessage(ret.message);
@@ -173,12 +177,14 @@ class MyDebugTracker {
                             wantCurrentStatus: true,
                             notifyAllEvents: false,
                             // Make sure you set debugLevel to zero for production
-                            debugLevel: 0
-                        }
+                            debugLevel: 0,
+                        },
                     };
                     const result = trackerApi.subscribe(arg);
                     if (typeof result === 'string') {
-                        vscode.window.showErrorMessage(`Subscription failed with extension 'debug-tracker-vscode' : ${result}`);
+                        vscode.window.showErrorMessage(
+                            `Subscription failed with extension 'debug-tracker-vscode' : ${result}`
+                        );
                         resolve(false);
                     } else {
                         trackerApiClientInfo = result;
@@ -191,23 +197,37 @@ class MyDebugTracker {
 
     static allSessions: { [sessionId: string]: vscode.DebugSession } = {};
     async debugTrackerEventHandler(event: IDebuggerTrackerEvent) {
-        let session = MyDebugTracker.allSessions[event.sessionId];
-        const isNewSession = !session && event.session;
-        if (event.session) {
-            session = event.session;
-            MyDebugTracker.allSessions[event.sessionId] = session;
-        }
-        if (!session) {
-            // THis should not happen
-            console.error('rtos-views: Could not find session ' + event.sessionId);
+        let session = event.session;
+        if (DebugSessionStatus.Initializing !== event.event) {
+            session = MyDebugTracker.allSessions[event.sessionId];
+            if (!session) {
+                // THis should not happen
+                console.error('rtos-views: Could not find session ' + event.sessionId);
+                return;
+            }
+        } else if (!session) {
+            console.error('Initializing but no session info?');
             return;
         }
-        if (isNewSession) {
-            this.handler.onStarted(session);
-        }
         switch (event.event) {
+            case DebugSessionStatus.Initializing: {
+                // Note that we can get initialized but never actually start the session due to errors
+                // so, we wait until we actually get a Started event
+                MyDebugTracker.allSessions[session.id] = session;
+                break;
+            }
+            case DebugSessionStatus.Started: {
+                this.handler.onStarted(session);
+                break;
+            }
             case OtherDebugEvents.FirstStackTrace: {
-                const frameId = event.stackTrace && event.stackTrace.body.stackFrames && event.stackTrace.body.stackFrames[0].id || undefined;
+                // TODOL Technically, we don't need the frameId any more but it won't hurt to wait a bit
+                // until most of VSCode updates itself before we start queries
+                const frameId =
+                    (event.stackTrace &&
+                        event.stackTrace.body.stackFrames &&
+                        event.stackTrace.body.stackFrames[0].id) ||
+                    undefined;
                 this.handler.onStopped(session, frameId);
                 break;
             }
@@ -233,7 +253,7 @@ export class RTOSTracker implements DebugEventHandler {
     private provider: RTOSViewProvider;
     private theTracker: MyDebugTracker;
     public enabled: boolean;
-    public visible: boolean;
+    public visible: boolean = false;
 
     constructor(private context: vscode.ExtensionContext) {
         this.provider = new RTOSViewProvider(context.extensionUri, this);
@@ -241,7 +261,7 @@ export class RTOSTracker implements DebugEventHandler {
         const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
 
         this.enabled = config.get('showRTOS', true);
-        this.visible = this.enabled;
+        RTOSCommon.RTOSBase.disableStackPeaks = config.get('disableStackPeaks', true);
         vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
         context.subscriptions.push(
             vscode.window.registerWebviewViewProvider(RTOSViewProvider.viewType, this.provider),
@@ -256,11 +276,21 @@ export class RTOSTracker implements DebugEventHandler {
             const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
             this.enabled = config.get('showRTOS', true);
             vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
+            if (this.enabled) {
+                this.provider.showAndFocus();
+            }
             this.update();
+        }
+        if (e.affectsConfiguration('mcu-debug.rtos-views.disableStackPeaks')) {
+            const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
+            RTOSCommon.RTOSBase.disableStackPeaks = config.get('disableStackPeaks', false);
         }
     }
 
-    public onStopped(session: vscode.DebugSession, frameId: number) {
+    public onStopped(session: vscode.DebugSession, frameId: number | undefined) {
+        if (!frameId) {
+            return;
+        }
         for (const rtosSession of this.sessionMap.values()) {
             if (rtosSession.session.id === session.id) {
                 rtosSession.lastFrameId = frameId;
@@ -269,7 +299,6 @@ export class RTOSTracker implements DebugEventHandler {
                         this.provider.updateHtml();
                     });
                 }
-                break;
             }
         }
     }
@@ -307,24 +336,22 @@ export class RTOSTracker implements DebugEventHandler {
 
     public toggleRTOSPanel() {
         this.enabled = !this.enabled;
-        this.updateRTOSPanelStatus();
+        this.updateRTOSPanelStatus(this.enabled);
     }
 
-    private updateRTOSPanelStatus() {
+    private updateRTOSPanelStatus(v: boolean) {
+        this.enabled = v;
         const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
         config.update('showRTOS', this.enabled);
         vscode.commands.executeCommand('setContext', 'mcu-debug.rtos-views:showRTOS', this.enabled);
-        /*
         if (this.enabled) {
             this.provider.showAndFocus();
         }
         this.update();
-        */
     }
 
     public notifyPanelDisposed() {
-        this.enabled = this.visible = false;
-        this.updateRTOSPanelStatus();
+        this.visible = false;
     }
 
     public async visibilityChanged(v: boolean) {
@@ -343,8 +370,7 @@ export class RTOSTracker implements DebugEventHandler {
             }
             try {
                 await this.update();
-            }
-            catch { }
+            } catch { }
         }
     }
 
@@ -355,17 +381,20 @@ export class RTOSTracker implements DebugEventHandler {
             if (!this.enabled || !this.visible || !this.sessionMap.size) {
                 resolve();
             }
-            this.busyHtml = { html: /*html*/'<h4>RTOS Views: Busy updating...</h4>\n', css: '' };
+            this.busyHtml = { html: /*html*/ '<h4>RTOS Views: Busy updating...</h4>\n', css: '' };
             this.provider.updateHtml();
-            this.updateRTOSInfo().then(() => {
-                this.busyHtml = undefined;
-                this.provider.updateHtml();
-                resolve();
-            }, (e) => {
-                this.busyHtml = undefined;
-                this.provider.updateHtml();
-                resolve();
-            });
+            this.updateRTOSInfo().then(
+                () => {
+                    this.busyHtml = undefined;
+                    this.provider.updateHtml();
+                    resolve();
+                },
+                (_e) => {
+                    this.busyHtml = undefined;
+                    this.provider.updateHtml();
+                    resolve();
+                }
+            );
         });
     }
 
@@ -391,17 +420,24 @@ export class RTOSTracker implements DebugEventHandler {
             const name = `RTOS Views: Session Name: "${rtosSession.session.name}"`;
             if (!rtosSession.rtos) {
                 const nameAndStatus = name + ' -- No RTOS detected';
-                ret.html += /*html*/`<h4>${nameAndStatus}</h4>\n`;
+                ret.html += /*html*/ `<h4>${nameAndStatus}</h4>\n`;
                 if (rtosSession.triedAndFailed) {
                     const supported = Object.keys(RTOS_TYPES).join(', ');
-                    ret.html += `<p>RTOS Views: Failed to match any supported RTOS. Supported RTOSes are (${supported}). ` +
+                    ret.html +=
+                        `<p>RTOS Views: Failed to match any supported RTOS. Supported RTOSes are (${supported}). ` +
                         'Please report issues and/or contribute code/knowledge to add your RTOS</p>\n';
                 } else {
-                    ret.html += /*html*/'<p>RTOS Views: Try refreshing this panel. RTOS detection may be still in progress</p>\n';
+                    ret.html +=
+                        /*html*/ '<p>RTOS Views: Try refreshing this panel. RTOS detection may be still in progress</p>\n';
                 }
             } else {
-                const nameAndStatus = name + ', ' + rtosSession.rtos.name + ' detected.' + (!rtosSession.htmlContent ? ' (No data available yet)' : '');
-                ret.html += /*html*/`<h4>${nameAndStatus}</h4>\n` + rtosSession.htmlContent.html;
+                const nameAndStatus =
+                    name +
+                    ', ' +
+                    rtosSession.rtos.name +
+                    ' detected.' +
+                    (!rtosSession.htmlContent ? ' (No data available yet)' : '');
+                ret.html += /*html*/ `<h4>${nameAndStatus}</h4>\n` + rtosSession.htmlContent.html;
                 ret.css = rtosSession.htmlContent.css;
             }
         }
@@ -418,12 +454,11 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
-        context: vscode.WebviewViewResolveContext,
-        token: vscode.CancellationToken
+        _context: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
     ) {
         this.webviewView = webviewView;
         this.parent.visible = this.webviewView.visible;
-        this.parent.enabled = true;
 
         webviewView.webview.options = {
             // Allow scripts in the webview
@@ -432,12 +467,12 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
         };
         this.webviewView.description = 'View RTOS internals';
 
-        this.webviewView.onDidDispose((e) => {
+        this.webviewView.onDidDispose((_e) => {
             this.webviewView = undefined;
             this.parent.notifyPanelDisposed();
         });
 
-        this.webviewView.onDidChangeVisibility((e) => {
+        this.webviewView.onDidChangeVisibility((_e) => {
             if (this.webviewView) {
                 this.parent.visibilityChanged(this.webviewView.visible);
             }
@@ -456,9 +491,11 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     }
 
     public showAndFocus() {
-        if (this.webviewView) {
-            this.webviewView.show(false);
-        }
+        // The following does not require the webview to exist. It will be created if needed
+        vscode.commands.executeCommand('rtos-views.rtos.focus');
+        //
+        // Following will toggle our panel. Why it is named like that, I don't know. It makes no mention of XRTOS
+        // vscode.commands.executeCommand('workbench.view.extension.rtos-views');
     }
 
     public updateHtml() {
@@ -474,7 +511,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
             return '';
         }
         if (!this.parent.enabled) {
-            return /*html*/`
+            return /*html*/ `
                 <!DOCTYPE html>
                 <html lang="en">
                 <head>
@@ -491,7 +528,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
             '@vscode',
             'webview-ui-toolkit',
             'dist',
-            'toolkit.js'
+            'toolkit.js',
         ]);
         // Get the local path to main script run in the webview, then convert it to a uri we can use in the webview.
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'dist', 'rtos-view.js'));
@@ -500,7 +537,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
         const htmlInfo = this.parent.getHtml();
         // Use a nonce to only allow a specific script to be run.
         const nonce = getNonce();
-        const ret = /*html*/`
+        const ret = /*html*/ `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -531,19 +568,21 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
 
 function writeHtmlToTmpDir(str: string) {
     try {
+        // eslint-disable-next-line no-constant-condition
         if (false) {
             const fname = path.join(os.tmpdir(), 'rtos.html');
             console.log(`Write HTML to file ${fname}`);
             fs.writeFileSync(fname, str);
         }
-    }
-    catch (e) {
+    } catch (e) {
         console.log(e ? e.toString() : 'unknown exception?');
     }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function appendMsgToTmpDir(str: string) {
     try {
+        // eslint-disable-next-line no-constant-condition
         if (false) {
             const fname = path.join(os.tmpdir(), 'rtos-msgs.txt');
             console.log(`Write ${str} to file ${fname}`);
@@ -552,8 +591,7 @@ function appendMsgToTmpDir(str: string) {
             }
             fs.appendFileSync(fname, str);
         }
-    }
-    catch (e) {
+    } catch (e) {
         console.log(e ? e.toString() : 'unknown exception?');
     }
 }

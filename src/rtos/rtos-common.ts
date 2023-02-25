@@ -1,3 +1,4 @@
+/* eslint-disable no-async-promise-executor */
 
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
@@ -16,9 +17,9 @@ export interface RTOSStackInfo {
 }
 
 export interface VarObjVal {
-    val: string;                    // The value
-    ref: number;                    // Variable reference. Technically, this is not a number, it is handle
-    exp: string | undefined;        // This is the expression that represents the value
+    val: string; // The value
+    ref: number; // Variable reference. Technically, this is not a number, it is handle
+    exp: string | undefined; // This is the expression that represents the value
 }
 
 export type RTOSStrToValueMap = { [key: string]: VarObjVal };
@@ -29,11 +30,11 @@ export type RTOSStrToValueMap = { [key: string]: VarObjVal };
 // Note: The table we produce should still look good when expanding/shrinking in the horizontal direction.. Things
 // should not run into each other. Not easy, but do your best and test it
 export enum ColTypeEnum {
-    colTypeNormal = 0,        // Will be left justified. Use for Text fields, fixed width hex values, etc.
-    colTypePercentage = 1 << 0,   // Will be centered with a % bar
-    colTypeNumeric = 1 << 1,   // Will be right justified
-    colTypeLink = 1 << 2,   // TODO: mark it as a link to do something additional. Not totally functional
-    colTypeCollapse = 1 << 3    // Items will be collapsible
+    colTypeNormal = 0, // Will be left justified. Use for Text fields, fixed width hex values, etc.
+    colTypePercentage = 1 << 0, // Will be centered with a % bar
+    colTypeNumeric = 1 << 1, // Will be right justified
+    colTypeLink = 1 << 2, // TODO: mark it as a link to do something additional. Not totally functional
+    colTypeCollapse = 1 << 3 // Items will be collapsible
 }
 
 export interface DisplayColumnItem {
@@ -43,8 +44,8 @@ export interface DisplayColumnItem {
     fieldName?: string;
     colType?: ColTypeEnum;
     colSpaceFillThreshold?: number; // This makes it fixed width (padded with spaces) unless value width is larger
-    colGapBefore?: number;          // Use if the field is going to be left justified or fixed width
-    colGapAfter?: number;           // Use if the field is going to be right justified or fixed width
+    colGapBefore?: number; // Use if the field is going to be left justified or fixed width
+    colGapAfter?: number; // Use if the field is going to be right justified or fixed width
 }
 
 export interface DisplayRowItem {
@@ -70,6 +71,7 @@ export class ShouldRetry extends Error {
 }
 
 export abstract class RTOSBase {
+    public static disableStackPeaks = false;
     public progStatus: 'started' | 'stopped' | 'running' | 'exited';
     public status: 'failed' | 'initialized' | 'none';
     public className: string;
@@ -93,6 +95,7 @@ export abstract class RTOSBase {
 
     private static reqCounter = 0;
     public customRequest(cmd: string, arg: any, opt?: boolean): Thenable<any> {
+        // eslint-disable-next-line no-async-promise-executor
         return new Promise<any>(async (resolve, reject) => {
             const c = ++RTOSBase.reqCounter;
             if (traceVars) {
@@ -104,8 +107,7 @@ export abstract class RTOSBase {
                     console.log(`${c} RTOS: result <- ${JSON.stringify(result)}`);
                 }
                 resolve(result);
-            }
-            catch (e) {
+            } catch (e) {
                 if (traceVars) {
                     console.log(`${c} RTOS: exception <- ${e}`);
                 }
@@ -136,7 +138,11 @@ export abstract class RTOSBase {
 
     // UTILITY functions for all RTOSes
     protected async evalForVarRef(
-        prevValue: number, useFrameId: number, expr: string, optional?: boolean): Promise<number | undefined> {
+        prevValue: number,
+        useFrameId: number,
+        expr: string,
+        optional?: boolean
+    ): Promise<number | undefined> {
         if (prevValue !== undefined) {
             return prevValue;
         } else if (this.progStatus !== 'stopped') {
@@ -145,33 +151,32 @@ export abstract class RTOSBase {
         const arg: DebugProtocol.EvaluateArguments = {
             frameId: useFrameId,
             expression: expr,
-            context: 'hover'
+            context: 'hover',
         };
+        // eslint-disable-next-line no-useless-catch
         try {
             const result = await this.customRequest('evaluate', arg, optional);
-            if (!result || (!optional && (result.variablesReference === 0))) {
+            if (!result || (!optional && result.variablesReference === 0)) {
                 throw new Error(`Failed to evaluate ${expr}`);
             }
             return result ? result.variablesReference : 0;
-        }
-        catch (e) {
+        } catch (e) {
             throw e;
         }
     }
 
-    protected async evalForVarValue(
-        useFrameId: number, expr: string): Promise<string | undefined> {
+    protected async evalForVarValue(useFrameId: number, expr: string): Promise<string | undefined> {
         const arg: DebugProtocol.EvaluateArguments = {
             frameId: useFrameId,
             expression: expr,
-            context: 'hover'
+            context: 'hover',
         };
+        // eslint-disable-next-line no-useless-catch
         try {
             const result = await this.customRequest('evaluate', arg);
             const ret = result?.result;
             return ret;
-        }
-        catch (e) {
+        } catch (e) {
             throw e;
         }
     }
@@ -182,33 +187,39 @@ export abstract class RTOSBase {
                 return reject(new Error(`busy, failed to evaluate ${dbg}`));
             } else {
                 const arg: DebugProtocol.VariablesArguments = {
-                    variablesReference: varRef
+                    variablesReference: varRef,
                 };
-                this.customRequest('variables', arg).then((result: any) => {
-                    if (!result || !result.variables || !result.variables.length) {
-                        reject(Error(`Failed to evaluate variable ${arg.variablesReference} ${dbg}`));
-                    } else {
-                        resolve(result.variables);
+                this.customRequest('variables', arg).then(
+                    (result: any) => {
+                        if (!result || !result.variables || !result.variables.length) {
+                            reject(Error(`Failed to evaluate variable ${arg.variablesReference} ${dbg}`));
+                        } else {
+                            resolve(result.variables);
+                        }
+                    },
+                    (e) => {
+                        reject(e);
                     }
-                }, (e) => {
-                    reject(e);
-                });
+                );
             }
         });
     }
 
     protected getVarChildrenObj(varRef: number, dbg: string): Promise<RTOSStrToValueMap | null> {
         return new Promise<RTOSStrToValueMap | null>((resolve, reject) => {
-            if ((varRef === undefined) || (varRef === 0)) {
+            if (varRef === undefined || varRef === 0) {
                 resolve(null);
                 return;
             }
-            this.getVarChildren(varRef, dbg).then((vars) => {
-                const obj = RTOSVarHelper.varsToObj(vars);
-                resolve(obj);
-            }, (e) => {
-                reject(e);
-            });
+            this.getVarChildren(varRef, dbg).then(
+                (vars) => {
+                    const obj = RTOSVarHelper.varsToObj(vars);
+                    resolve(obj);
+                },
+                (e) => {
+                    reject(e);
+                }
+            );
         });
     }
 
@@ -222,14 +233,19 @@ export abstract class RTOSBase {
     //
     // This function may have to be adjusted for other debuggers, for when there is an error. We know what our
     // behavior is fairly good idea of what cppdbg does
-    protected async getVarIfEmpty(prev: RTOSVarHelperMaybe, fId: number, expr: string, opt?: boolean): Promise<RTOSVarHelperMaybe> {
+    protected async getVarIfEmpty(
+        prev: RTOSVarHelperMaybe,
+        fId: number,
+        expr: string,
+        opt?: boolean
+    ): Promise<RTOSVarHelperMaybe> {
         try {
-            if ((prev !== undefined) || (this.progStatus !== 'stopped')) {
+            if (prev !== undefined || this.progStatus !== 'stopped') {
                 return prev;
             }
             const tmp = new RTOSVarHelper(expr, this);
             const success = await tmp.tryInitOrUpdate(fId, opt);
-            if (!success || (isNullOrUndefined(tmp.value) && (this.progStatus !== 'stopped'))) {
+            if (!success || (isNullOrUndefined(tmp.value) && this.progStatus !== 'stopped')) {
                 // It is most likely busy .... try again. Program status can change while we are querying
                 throw new ShouldRetry(expr);
             }
@@ -243,13 +259,12 @@ export abstract class RTOSBase {
                 return null;
             }
             return tmp;
-        }
-        catch (e) {
+        } catch (e) {
             if (e instanceof ShouldRetry) {
                 throw e;
             }
-            if (opt && (this.progStatus === 'stopped')) {
-                return null;        // This optional item will never succeed. Return null to avoid retries
+            if (opt && this.progStatus === 'stopped') {
+                return null; // This optional item will never succeed. Return null to avoid retries
             }
             if (traceVars) {
                 console.error(`2. Throwing exception for variable ${expr}`);
@@ -275,13 +290,13 @@ export abstract class RTOSBase {
     }
 
     protected getExprValChildrenObj(expr: string, frameId: number): Promise<RTOSStrToValueMap | any> {
-        return new Promise<RTOSStrToValueMap | any>(async (resolve, reject) => {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise<RTOSStrToValueMap | any>(async (resolve) => {
             try {
                 const vars = await this.getExprValChildren(expr, frameId);
                 const obj = RTOSVarHelper.varsToObj(vars);
                 resolve(obj);
-            }
-            catch (e) {
+            } catch (e) {
                 resolve(e as any);
             }
         });
@@ -348,8 +363,8 @@ export abstract class RTOSBase {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         RTOSDisplayColumn: { [key: string]: DisplayColumnItem },
         allThreads: RTOSThreadInfo[],
-        timeInfo: string): HtmlInfo {
-
+        timeInfo: string
+    ): HtmlInfo {
         const getAlignClasses = (key: string) => {
             const colType: ColTypeEnum = RTOSDisplayColumn[key].colType || ColTypeEnum.colTypeNormal;
             let ret = '';
@@ -365,7 +380,7 @@ export abstract class RTOSBase {
         const padText = (key: string, txt: string) => {
             let needWSPreserve = false;
             const colSpaceFillThreshold = RTOSDisplayColumn[key].colSpaceFillThreshold;
-            if ((colSpaceFillThreshold !== undefined) && (txt.length > 0)) {
+            if (colSpaceFillThreshold !== undefined && txt.length > 0) {
                 txt = txt.padStart(colSpaceFillThreshold);
                 needWSPreserve = true;
             }
@@ -396,18 +411,19 @@ export abstract class RTOSBase {
                 let col = 1;
                 let have2ndRow = false;
                 const commonHeaderRowPart = '  <vscode-data-grid-row row-type="header" class="threads-header-row">\n';
-                const commonHeaderCellPart = '    <vscode-data-grid-cell cell-type="columnheader" class="threads-header-cell';
-                if (true) {
-                    header = commonHeaderRowPart;
-                    for (const key of displayFieldNames) {
-                        const txt = padText(key, RTOSDisplayColumn[key].headerRow1);
-                        const additionalClasses = getAlignClasses(key);
-                        header += `${commonHeaderCellPart}${additionalClasses}" grid-column="${col}">${txt}</vscode-data-grid-cell>\n`;
-                        if (!have2ndRow) { have2ndRow = !!RTOSDisplayColumn[key].headerRow2; }
-                        col++;
+                const commonHeaderCellPart =
+                    '    <vscode-data-grid-cell cell-type="columnheader" class="threads-header-cell';
+                header = commonHeaderRowPart;
+                for (const key of displayFieldNames) {
+                    const txt = padText(key, RTOSDisplayColumn[key].headerRow1);
+                    const additionalClasses = getAlignClasses(key);
+                    header += `${commonHeaderCellPart}${additionalClasses}" grid-column="${col}">${txt}</vscode-data-grid-cell>\n`;
+                    if (!have2ndRow) {
+                        have2ndRow = !!RTOSDisplayColumn[key].headerRow2;
                     }
-                    header += '  </vscode-data-grid-row>\n';
+                    col++;
                 }
+                header += '  </vscode-data-grid-row>\n';
 
                 if (have2ndRow) {
                     col = 1;
@@ -424,6 +440,7 @@ export abstract class RTOSBase {
             }
 
             let col = 1;
+            // prettier-ignore
             const running = (thr.running === true) ? ' running' : '';
             const rowClass = `thread-row-${row}`;
             table += `  <vscode-data-grid-row class="${this.className}-row threads-row ${rowClass}">\n`;
@@ -433,13 +450,14 @@ export abstract class RTOSBase {
                 const lKey = key.toLowerCase();
                 let additionalClasses = running + getAlignClasses(key);
                 const colType = RTOSDisplayColumn[key].colType || ColTypeEnum.colTypeNormal;
-                if ((colType & ColTypeEnum.colTypePercentage)) {
+                if (colType & ColTypeEnum.colTypePercentage) {
                     if (v.value !== undefined) {
                         const rowValueNumber = parseFloat(v.value);
                         if (!isNaN(rowValueNumber)) {
                             const activeValueStr = Math.floor(rowValueNumber).toString();
                             additionalClasses += ' backgroundPercent';
-                            style += `.${this.className}-grid .${rowClass} .threads-cell-${lKey}.backgroundPercent {\n` +
+                            style +=
+                                `.${this.className}-grid .${rowClass} .threads-cell-${lKey}.backgroundPercent {\n` +
                                 `  --rtosview-percentage-active: ${activeValueStr}%;\n}\n\n`;
                         }
                     }
@@ -447,7 +465,7 @@ export abstract class RTOSBase {
                     // We lose any padding/justification information. Deal with this later when start doing memory windows
                     // and try to preserve formatting. Disable for now
                     // txt = `<vscode-link class="threads-link-${lKey}" href="#">${v.text}</vscode-link>`;
-                } else if ((colType & ColTypeEnum.colTypeCollapse) && (v.value)) {
+                } else if (colType & ColTypeEnum.colTypeCollapse && v.value) {
                     // Following does not work with current version of Node
                     // const length = Object.values(v.value).reduce((acc: number, cur: string[]) => acc + cur.length, 0);
                     let length = 0;
@@ -457,7 +475,9 @@ export abstract class RTOSBase {
                         }
                     }
                     if (length > 1) {
-                        const descriptions = Object.keys(v.value).map((key) => `${key}: ${v.value[key].join(', ')}`).join('<br>');
+                        const descriptions = Object.keys(v.value)
+                            .map((key) => `${key}: ${v.value[key].join(', ')}`)
+                            .join('<br>');
                         txt = `<button class="collapse-button">${v.text}</button><div class="collapse">${descriptions}</div>`;
                     }
                 }
@@ -477,9 +497,7 @@ export abstract class RTOSBase {
             ret += `<p>Data collected at ${timeInfo}</p>\n`;
         }
 
-        const htmlContent: HtmlInfo = {
-            html: ret, css: style
-        };
+        const htmlContent: HtmlInfo = { html: ret, css: style };
 
         return htmlContent;
     }
@@ -489,8 +507,7 @@ export class RTOSVarHelper {
     public varReference: number | undefined;
     public value: string | undefined;
 
-    constructor(public expression: string, public rtos: RTOSBase) {
-    }
+    constructor(public expression: string, public rtos: RTOSBase) { }
 
     public static varsToObj(vars: DebugProtocol.Variable[]): RTOSStrToValueMap {
         const obj: RTOSStrToValueMap = {};
@@ -521,12 +538,13 @@ export class RTOSVarHelper {
             this.value = result.result;
             this.varReference = result.variablesReference;
             return true;
-        }
-        catch (e) {
+        } catch (e) {
             const msg = (e as any)?.message as string;
             if (msg) {
-                if ((msg === 'Busy') ||                        // Cortex-Debug
-                    (msg.includes('process is running'))) {    // cppdbg
+                if (
+                    msg === 'Busy' || // Cortex-Debug
+                    msg.includes('process is running') // cppdbg
+                ) {
                     // For cppdbg, the whole message is 'Unable to perform this action because the process is running.'
                     return false;
                 }
@@ -540,15 +558,18 @@ export class RTOSVarHelper {
             if (this.rtos.progStatus !== 'stopped') {
                 return reject(new Error(`busy, failed on ${this.expression}`));
             } else {
-                this.tryInitOrUpdate(frameId).then((res) => {
-                    if (!res) {
-                        reject(new Error('failed to initialize/update'));
-                    } else {
-                        resolve(this.value);
+                this.tryInitOrUpdate(frameId).then(
+                    (res) => {
+                        if (!res) {
+                            reject(new Error('failed to initialize/update'));
+                        } else {
+                            resolve(this.value);
+                        }
+                    },
+                    (e) => {
+                        reject(e);
                     }
-                }, (e) => {
-                    reject(e);
-                });
+                );
             }
         });
     }
@@ -558,38 +579,51 @@ export class RTOSVarHelper {
             if (this.rtos.progStatus !== 'stopped') {
                 return reject(new Error(`busy, failed on ${this.expression}`));
             } else {
-                this.getValue(frameId).then((str) => {
-                    if (!this.varReference || !str) {
-                        reject(Error(`Failed to get variable reference for ${this.expression}`));
-                        return;
-                    }
-                    const arg: DebugProtocol.VariablesArguments = {
-                        variablesReference: this.varReference
-                    };
-                    this.rtos.customRequest('variables', arg).then((result: any) => {
-                        if (!result || !result.variables || !result.variables.length) {
-                            reject(Error(`Failed to evaluate variable ${this.expression} ${arg.variablesReference}`));
-                        } else {
-                            resolve(result.variables);
+                this.getValue(frameId).then(
+                    (str) => {
+                        if (!this.varReference || !str) {
+                            reject(Error(`Failed to get variable reference for ${this.expression}`));
+                            return;
                         }
-                    }, (e) => {
+                        const arg: DebugProtocol.VariablesArguments = {
+                            variablesReference: this.varReference,
+                        };
+                        this.rtos.customRequest('variables', arg).then(
+                            (result: any) => {
+                                if (!result || !result.variables || !result.variables.length) {
+                                    reject(
+                                        Error(
+                                            `Failed to evaluate variable ${this.expression} ${arg.variablesReference}`
+                                        )
+                                    );
+                                } else {
+                                    resolve(result.variables);
+                                }
+                            },
+                            (e) => {
+                                reject(e);
+                            }
+                        );
+                    },
+                    (e) => {
                         reject(e);
-                    });
-                }, (e) => {
-                    reject(e);
-                });
+                    }
+                );
             }
         });
     }
 
     public getVarChildrenObj(useFrameId: number): Promise<RTOSStrToValueMap> {
         return new Promise<RTOSStrToValueMap>((resolve, reject) => {
-            this.getVarChildren(useFrameId).then((vars) => {
-                const obj = RTOSVarHelper.varsToObj(vars);
-                resolve(obj);
-            }, (e) => {
-                reject(e);
-            });
+            this.getVarChildren(useFrameId).then(
+                (vars) => {
+                    const obj = RTOSVarHelper.varsToObj(vars);
+                    resolve(obj);
+                },
+                (e) => {
+                    reject(e);
+                }
+            );
         });
     }
 }
@@ -637,6 +671,7 @@ export class HrTimer {
     }
 
     private toStringWithRes(res: number) {
+        // prettier-ignore
         const diff = process.hrtime.bigint() - this.start + BigInt((10 ** res) / 2);
         let ret = diff.toString();
         ret = ret.length <= res ? '0' : ret.substr(0, ret.length - res);
@@ -645,16 +680,16 @@ export class HrTimer {
 }
 
 export function isNullOrUndefined(x: any) {
-    return (x === undefined) || (x === null);
+    return x === undefined || x === null;
 }
 
-export function hexFormat(value: number, padding: number = 8, includePrefix: boolean = true): string {
+export function hexFormat(value: number, padding = 8, includePrefix = true): string {
     let base = (value >>> 0).toString(16);
     base = base.padStart(padding, '0');
     return includePrefix ? '0x' + base : base;
 }
 
-export function toStringDecHexOctBin(val: number/* should be an integer*/): string {
+export function toStringDecHexOctBin(val: number /* should be an integer */): string {
     if (Number.isNaN(val)) {
         return 'NaN: Not a number';
     }
@@ -680,6 +715,7 @@ export function toStringDecHexOctBin(val: number/* should be an integer*/): stri
     str = val.toString(2);
     str = '0'.repeat(Math.max(0, 32 - str.length)) + str;
     let tmp = '';
+    // eslint-disable-next-line no-constant-condition
     while (true) {
         if (str.length <= 8) {
             tmp = str + tmp;

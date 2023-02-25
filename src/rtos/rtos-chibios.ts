@@ -45,17 +45,72 @@ enum chThreadState {
 const colNumType = RTOSCommon.ColTypeEnum.colTypeNumeric;
 const threadTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
 
-threadTableItems[threadDisplayFields[threadDisplayFields.ID]] = { width: 2, headerRow1: '', headerRow2: 'id', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.THREAD_DESCRIPTION]] = { width: 14, headerRow1: '', headerRow2: 'Thread', colGapBefore: 1 };
-threadTableItems[threadDisplayFields[threadDisplayFields.FLAGS]] = { width: 2, headerRow1: '', headerRow2: 'Flags', colGapAfter: 1 };
-threadTableItems[threadDisplayFields[threadDisplayFields.REFS]] = { width: 2, headerRow1: '', headerRow2: 'Refs', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.TIME]] = { width: 2, headerRow1: '', headerRow2: 'Time', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.WTOBJP]] = { width: 4, headerRow1: 'Wait', headerRow2: 'Obj/Msg', colGapBefore: 1 };
-threadTableItems[threadDisplayFields[threadDisplayFields.STATS_N]] = { width: 4, headerRow1: 'Stats', headerRow2: 'Switches', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.STATS_WORST]] = { width: 4, headerRow1: '', headerRow2: 'Worst Path', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.STATS_CUMULATIVE]] = { width: 4, headerRow1: '', headerRow2: 'Cumulative Time', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = { width: 3, headerRow1: 'Stack', headerRow2: '', colType: colNumType };
-threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = { width: 3, headerRow1: '', headerRow2: '', colType: colNumType };
+threadTableItems[threadDisplayFields[threadDisplayFields.ID]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'id',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.THREAD_DESCRIPTION]] = {
+    width: 14,
+    headerRow1: '',
+    headerRow2: 'Thread',
+    colGapBefore: 1
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.FLAGS]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'Flags',
+    colGapAfter: 1
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.REFS]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'Refs',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.TIME]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'Time',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.WTOBJP]] = {
+    width: 4,
+    headerRow1: 'Wait',
+    headerRow2: 'Obj/Msg',
+    colGapBefore: 1
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.STATS_N]] = {
+    width: 4,
+    headerRow1: 'Stats',
+    headerRow2: 'Switches',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.STATS_WORST]] = {
+    width: 4,
+    headerRow1: '',
+    headerRow2: 'Worst Path',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.STATS_CUMULATIVE]] = {
+    width: 4,
+    headerRow1: '',
+    headerRow2: 'Cumulative Time',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = {
+    width: 3,
+    headerRow1: 'Stack',
+    headerRow2: '',
+    colType: colNumType
+};
+threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = {
+    width: 3,
+    headerRow1: '',
+    headerRow2: '',
+    colType: colNumType
+};
 
 const threadDisplayFieldNames: string[] = Object.keys(threadTableItems);
 
@@ -128,22 +183,21 @@ function getThreadStateName(s: number): string {
 }
 
 function getCString(s: string, nullValue: string = ''): string {
-
     const matchName = s.match(/"([^*]*)"$/);
 
     return matchName ? matchName[1] : nullValue;
 }
 
 function getNumber(s: string): number {
-    return (s ? parseInt(s) : 0);
+    return s ? parseInt(s) : 0;
 }
 
 function getNumberNVL(s: string | null | undefined, nullValue: number): number {
-    return (s ? parseInt(s) : nullValue);
+    return s ? parseInt(s) : nullValue;
 }
 
 function nvl(v: any, nullValue: any) {
-    if ((v === undefined) || (v === null)) {
+    if (v === undefined || v === null) {
         return nullValue;
     }
 
@@ -151,11 +205,10 @@ function nvl(v: any, nullValue: any) {
 }
 
 function getStackDisplayPercentage(s?: number, v?: number) {
-
     let text = '-';
     let percent = 0;
 
-    if ((s !== undefined) && (v !== undefined)) {
+    if (s !== undefined && v !== undefined) {
         if (v === -1) {
             text = 'overflow';
             percent = 100;
@@ -165,11 +218,10 @@ function getStackDisplayPercentage(s?: number, v?: number) {
         }
     }
 
-    return {text: text, percent: percent};
+    return { text: text, percent: percent };
 }
 
 function getStackDisplayValue(v?: number): string {
-
     let text = '-';
 
     if (v) {
@@ -183,7 +235,6 @@ function getStackDisplayValue(v?: number): string {
     return text;
 }
 export class RTOSChibiOS extends RTOSCommon.RTOSBase {
-
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
     // similar to Watch/Hover variables
@@ -225,18 +276,15 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
     }
 
     private async scanStackUnused(stackTop: number, stackEnd: number, s: number) {
-        const stackData = await this.session.customRequest(
-            'readMemory',
-            {
-                memoryReference: RTOSCommon.hexFormat(Math.min(stackTop, stackEnd)),
-                count: s
-            }
-        );
+        const stackData = await this.session.customRequest('readMemory', {
+            memoryReference: RTOSCommon.hexFormat(Math.min(stackTop, stackEnd)),
+            count: s
+        });
 
         const bytes = new Uint8Array(Buffer.from(stackData.data, 'base64'));
 
         let unused = 0;
-        while ((unused < bytes.length) && (bytes[unused] === 0x55)) {
+        while (unused < bytes.length && bytes[unused] === 0x55) {
             unused++;
         }
 
@@ -255,7 +303,6 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
     }
 
     private getStackPeak(stackInfo: RTOSCommon.RTOSStackInfo, unused: number) {
-
         let peak = undefined;
 
         if (this.hasWAEND) {
@@ -280,18 +327,30 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 // re-try everything, we do remember what already had succeeded and don't waste time trying again. That
                 // is how this.getVarIfEmpty() works
                 try {
-                    this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '&ch_system.reglist', false);
+                    this.chReglist = await this.getVarIfEmpty(
+                        this.chReglist,
+                        useFrameId,
+                        '&ch_system.reglist',
+                        false
+                    );
                     this.smp = true;
-                }
-                catch (e) {
+                } catch (e) {
                     if (e instanceof RTOSCommon.ShouldRetry) {
                         throw e;
                     }
-                    this.chReglist = await this.getVarIfEmpty(this.chReglist, useFrameId, '&ch0.reglist', false);
+                    this.chReglist = await this.getVarIfEmpty(
+                        this.chReglist, useFrameId,
+                        '&ch0.reglist',
+                        false);
                 }
 
-                this.chRlistCurrent = await this.getVarIfEmpty(this.chRlistCurrent, useFrameId, 'ch0.rlist.current', false);
-                this.threadOffset = parseInt(await this.getExprVal('((char *)(&((thread_t *)0)->rqueue) - (char *)0)', useFrameId) || '');
+                this.chRlistCurrent = await this.getVarIfEmpty(
+                    this.chRlistCurrent, useFrameId,
+                    'ch0.rlist.current',
+                    false);
+                this.threadOffset = parseInt(await this.getExprVal(
+                    '((char *)(&((thread_t *)0)->rqueue) - (char *)0)',
+                    useFrameId) || '');
                 this.threadSize = parseInt(await this.getExprVal('sizeof(thread_t)', useFrameId) || '');
                 this.traceRecordSize = parseInt(await this.getExprVal('sizeof(trace_event_t)', useFrameId) || '');
                 this.chDebug = await this.getExprValChildrenObj('ch_debug', useFrameId);
@@ -302,12 +361,32 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
                 if (!(await this.getExprVal('ch0.rlist.current.waend', useFrameId))) {
                     // old version without waend
-                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = { width: 3, headerRow1: 'Stack', headerRow2: 'Current free', colType: colNumType };
-                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = { width: 3, headerRow1: '', headerRow2: 'Min. free', colType: colNumType };
+                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = {
+                        width: 3,
+                        headerRow1: 'Stack',
+                        headerRow2: 'Current free',
+                        colType: colNumType
+                    };
+                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = {
+                        width: 3,
+                        headerRow1: '',
+                        headerRow2: 'Min. free',
+                        colType: colNumType
+                    };
                 } else {
                     // new version with waend
-                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = { width: 4, headerRow1: 'Stack', headerRow2: 'Current %<br><small>(Used B / Size B)</small>', colType: RTOSCommon.ColTypeEnum.colTypePercentage };
-                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = { width: 4, headerRow1: '', headerRow2: 'Peak %<br><small>(Peak B / Size B)</small>', colType: RTOSCommon.ColTypeEnum.colTypePercentage };
+                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_CURRENT_USAGE]] = {
+                        width: 4,
+                        headerRow1: 'Stack',
+                        headerRow2: 'Current %<br><small>(Used B / Size B)</small>',
+                        colType: RTOSCommon.ColTypeEnum.colTypePercentage
+                    };
+                    threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = {
+                        width: 4,
+                        headerRow1: '',
+                        headerRow2: 'Peak %<br><small>(Peak B / Size B)</small>',
+                        colType: RTOSCommon.ColTypeEnum.colTypePercentage
+                    };
                     this.hasWAEND = true;
                 }
 
@@ -327,8 +406,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 this.status = 'initialized';
             }
             return this;
-        }
-        catch (e) {
+        } catch (e) {
             if (e instanceof RTOSCommon.ShouldRetry) {
                 console.error(e.message);
             } else {
@@ -340,40 +418,48 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
     }
 
     protected createHmlHelp() {
+        function strong(text: string) {
+            return `<strong>${text}</strong>`;
+        }
+
         if (this.helpHtml === undefined) {
             this.helpHtml = '';
             try {
                 let ret: string = '';
-                function strong(text: string) {
-                    return `<strong>${text}</strong>`;
-                }
 
                 if (!this.hasWABASE) {
-                    ret += `Thread stack debug information is not enabled: to enable set ${strong('CH_DBG_ENABLE_STACK_CHECK')} to ${strong('TRUE')} in chconf.h<br><br>`;
+                    ret +=
+                        `Thread stack debug information is not enabled: to enable set
+                        ${strong('CH_DBG_ENABLE_STACK_CHECK')} to ${strong('TRUE')} in chconf.h<br><br>`;
                 }
 
                 if (!this.chConfigDBGFillThreads) {
-                    ret += `Thread stack peak calculation is disabled: to enable set ${strong('CH_DBG_FILL_THREADS')} to ${strong('TRUE')} in chconf.h<br><br>`;
+                    ret +=
+                        `Thread stack peak calculation is disabled: to enable set
+                        ${strong('CH_DBG_FILL_THREADS')} to ${strong('TRUE')} in chconf.h<br><br>`;
                 }
 
                 if (!this.chCH0['kernel_stats']) {
-                    ret += `Kernel statistics are not enabled: to enable set ${strong('CH_DBG_STATISTICS')} to ${strong('TRUE')} in chconf.h<br><br>`;
+                    ret +=
+                        `Kernel statistics are not enabled: to enable set
+                        ${strong('CH_DBG_STATISTICS')} to ${strong('TRUE')} in chconf.h<br><br>`;
                 }
 
                 if (ret) {
-                    ret += 'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
-                    this.helpHtml = '<button class="help-button">Hints to get more out of the ChibiOS RTOS View</button>\n' +
-                        `<div class="help"><p>\n${ret}\n</p></div>\n`;
+                    ret +=
+                        'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
+                    this.helpHtml =
+                        `<button class="help-button">Hints to get more out of the ChibiOS RTOS View</button>\n
+                        <div class="help"><p>\n${ret}\n</p></div>\n`;
                 }
-            }
-            catch (e) {
+            } catch (e) {
                 console.log(e);
             }
         }
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;
@@ -390,29 +476,33 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             this.trace = [];
             this.threads.clear();
 
-            this.chRlistCurrent?.getValue(frameId).then(async (rlistCurrentStr) => {
-                try {
-                    this.chCH0 = await this.getExprValChildrenObj('ch0', frameId);
-                    this.chVTList = await this.getVarChildrenObj(this.chCH0['vtlist']?.ref, 'vtlist') || {};
-                    this.rlistCurrent = getNumberNVL(rlistCurrentStr, 0);
+            this.chRlistCurrent?.getValue(frameId).then(
+                async (rlistCurrentStr) => {
+                    try {
+                        this.chCH0 = await this.getExprValChildrenObj('ch0', frameId);
+                        this.chVTList = await this.getVarChildrenObj(this.chCH0['vtlist']?.ref, 'vtlist') || {};
+                        this.rlistCurrent = getNumberNVL(rlistCurrentStr, 0);
 
-                    if (0 !== this.rlistCurrent) {
-                        await this.getRTOSInfo(this.chReglist, frameId);
-                        this.finalThreads = [...this.foundThreads];
+                        if (0 !== this.rlistCurrent) {
+                            await this.getRTOSInfo(this.chReglist, frameId);
+                            this.finalThreads = [...this.foundThreads];
+                        } else {
+                            this.finalThreads = [];
+                        }
+
+                        this.stale = false;
+                        this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
+                        resolve();
+                    } catch (e) {
+                        resolve();
+                        console.error('ChibiOS.refresh() failed: ', e);
                     }
-
-                    this.stale = false;
-                    this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
+                },
+                (reason) => {
                     resolve();
+                    console.error('ChibiOS.refresh() failed: ', reason);
                 }
-                catch (e) {
-                    resolve();
-                    console.error('ChibiOS.refresh() failed: ', e);
-                }
-            }, (reason) => {
-                resolve();
-                console.error('ChibiOS.refresh() failed: ', reason);
-            });
+            );
         });
     }
 
@@ -452,7 +542,10 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         const rlist = await this.getVarChildrenObj(this.chCH0['rlist']?.ref, 'rlist') || {};
 
         this.globalInfo.push({name: chMessages.KERNEL_VERSION, value: this.kernelVersion});
-        this.globalInfo.push({name: chMessages.SYSTEM_STATE, value: system['state'] ? system['state'].val : chMessages.UNKNOWN});
+        this.globalInfo.push({
+            name: chMessages.SYSTEM_STATE,
+            value: system['state'] ? system['state'].val : chMessages.UNKNOWN
+        });
 
         if (this.chVTList['lasttime']) {
             this.globalInfo.push({name: chMessages.SYSTEM_TIME_MODE, value: chMessages.TICKLESS});
@@ -465,19 +558,30 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         }
 
         if (debug['panic_msg']) {
-            this.globalInfo.push({name: chMessages.PANIC_MESSAGE, value: getCString(debug['panic_msg'].val, chMessages.NONE)});
+            this.globalInfo.push({
+                name: chMessages.PANIC_MESSAGE,
+                value: getCString(debug['panic_msg'].val,
+                chMessages.NONE)
+            });
         } else {
             this.globalInfo.push({name: chMessages.PANIC_MESSAGE, value: chMessages.NOT_ENABLED});
         }
 
         if (debug['isr_cnt']) {
-            this.globalInfo.push({name: chMessages.ISR_LEVEL, value: getNumber(debug['isr_cnt'].val) === 0 ? 'not within ISR' : 'within ISR - ' + debug['isr_cnt']?.val});
+            this.globalInfo.push({
+                name: chMessages.ISR_LEVEL,
+                value: getNumber(debug['isr_cnt'].val) === 0 ? 'not within ISR' : 'within ISR - ' + debug['isr_cnt']?.val
+            });
         } else {
             this.globalInfo.push({name: chMessages.ISR_LEVEL, value: chMessages.NOT_ENABLED});
         }
 
         if (debug['lock_cnt']) {
-            this.globalInfo.push({name: chMessages.LOCK_LEVEL, value: getNumber(debug['lock_cnt'].val) === 0 ? 'not within lock' : 'within lock - ' + debug['lock_cnt']?.val});
+            this.globalInfo.push({
+                name: chMessages.LOCK_LEVEL,
+                value: getNumber(debug['lock_cnt'].val) === 0
+                ? 'not within lock' : 'within lock - ' + debug['lock_cnt']?.val
+            });
         } else {
             this.globalInfo.push({name: chMessages.LOCK_LEVEL, value: chMessages.NOT_ENABLED});
         }
@@ -498,7 +602,10 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             do {
                 const currentThreadAddr = currentReglist - this.threadOffset;
                 const currentThread = await this.getExprValChildrenObj(`(thread_t *) ${currentThreadAddr}`, frameId);
-                const currentThreadPqueue = await this.getExprValChildrenObj(`((thread_t *) ${currentThreadAddr} )->hdr.pqueue`, frameId);
+                const currentThreadPqueue = await this.getExprValChildrenObj(
+                    `((thread_t *) ${currentThreadAddr} )->hdr.pqueue`,
+                    frameId
+                );
                 const currentThreadStateDetails = await this.getVarChildrenObj(currentThread['u']?.ref, 'u') || {};
                 const currentThreadStats = await this.getVarChildrenObj(currentThread['stats']?.ref, 'stats') || {};
 
@@ -524,8 +631,11 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 };
 
                 mySetter(threadDisplayFields.ID, i.toString());
-                mySetter(threadDisplayFields.THREAD_DESCRIPTION,
-                    threadName + '@' + RTOSCommon.hexFormat(currentThreadAddr) + ' ' + threadState + ' [P:' + threadPrio + ']');
+                mySetter(
+                    threadDisplayFields.THREAD_DESCRIPTION,
+                    threadName + '@' + RTOSCommon.hexFormat(currentThreadAddr) + ' ' + threadState +
+                    ' [P:' + threadPrio + ']'
+                );
                 mySetter(threadDisplayFields.FLAGS, RTOSCommon.hexFormat(threadFlags, 2));
                 mySetter(threadDisplayFields.REFS, threadRefs.toString());
                 mySetter(threadDisplayFields.TIME, threadTime);
@@ -592,7 +702,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         } else {
             stackInfo.stackFree = Math.abs(stackInfo.stackTop - stackInfo.stackEnd);
 
-            if (stackInfo.stackSize && stackInfo.stackSize !== 0 ) {
+            if (stackInfo.stackSize && stackInfo.stackSize !== 0) {
                 stackInfo.stackUsed = Math.max(0, stackInfo.stackSize - stackInfo.stackFree);
             }
 
@@ -714,7 +824,9 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
                 const traceBuffer = await this.getVarChildrenObj(this.chCH0['trace_buffer']?.ref, 'trace_buffer') || {};
                 const events = await this.getVarChildrenObj(traceBuffer['buffer']?.ref, 'buffer') || {};
-                const next = parseInt(await this.getExprVal('(ch0.trace_buffer.ptr - ch0.trace_buffer.buffer)', frameId) || '');
+                const next = parseInt(
+                    await this.getExprVal('(ch0.trace_buffer.ptr - ch0.trace_buffer.buffer)', frameId) || ''
+                );
                 let i = next;
                 let n = 1;
 
@@ -765,7 +877,8 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                 const isr =  await this.getVarChildrenObj(u['isr']?.ref, 'isr') || {};
                                 this.trace.push({
                                     event: n,
-                                    eventType: eventType === 3 ? chTraceEventTypes.ISR_ENTER : chTraceEventTypes.ISR_LEAVE,
+                                    eventType:
+                                        eventType === 3 ? chTraceEventTypes.ISR_ENTER : chTraceEventTypes.ISR_LEAVE,
                                     state: '',
                                     rtstamp: parseInt(event['rtstamp']?.val),
                                     time: parseInt(event['time']?.val),
@@ -826,9 +939,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
     public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
     public getHTML(): RTOSCommon.HtmlInfo {
-        const htmlContent: RTOSCommon.HtmlInfo = {
-            html: '', css: ''
-        };
+        const htmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
         // WARNING: This stuff is super fragile. Once we know how this works, then we should refactor this
         if (this.status === 'none') {
             htmlContent.html = '<p>RTOS not yet fully initialized. Will occur next time program pauses</p>\n';
@@ -839,7 +950,9 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             htmlContent.css = lastHtmlInfo.css;
             return htmlContent;
         } else if (this.finalThreads.length === 0) {
-            htmlContent.html = `<p>No ${this.name} threads detected, perhaps RTOS not yet initialized or tasks yet to be created!</p>\n`;
+            htmlContent.html =
+                            `<p>No ${this.name} threads detected, perhaps RTOS not yet initialized or
+                            tasks yet to be created!</p>\n`;
             return htmlContent;
         }
 
@@ -900,5 +1013,4 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         // console.log(this.lastValidHtmlContent.html);
         return this.lastValidHtmlContent;
     }
-
 }

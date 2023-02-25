@@ -1,8 +1,12 @@
 {
     "compilerOptions": {
         "module": "commonjs",
-        "target": "ES2020",
-        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "target": "ES2022",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
         "outDir": "out",
         "esModuleInterop": true,
         "sourceMap": true,
@@ -11,11 +15,15 @@
         // "jsx": "react",
         "forceConsistentCasingInFileNames": true,
         "importHelpers": true,
-        "strict": true /* enable all strict type-checking options */
+        "strict": true, /* enable all strict type-checking options */
         /* Additional Checks */
-        // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
+        "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
         // "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
         // "noUnusedParameters": true,  /* Report errors on unused parameters. */
     },
-    "exclude": ["node_modules", ".vscode-test", "src/test"]
+    "exclude": [
+        "node_modules",
+        ".vscode-test",
+        "src/test"
+    ]
 }
