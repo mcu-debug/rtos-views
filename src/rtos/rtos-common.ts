@@ -287,6 +287,62 @@ export abstract class RTOSBase {
         });
     }
 
+    protected htmlEscape(s: String): String {
+        return s
+            .replace(/&/g, '&amp')
+            .replace(/'/g, '&apos')
+            .replace(/"/g, '&quot')
+            .replace(/>/g, '&gt')
+            .replace(/</g, '&lt');
+    }
+
+    protected getHTMLDataGrid(columns: any[], rows: any[], attributes: any[]): String {
+        let html = '';
+        let attrs = '';
+        let headers = '';
+        let dataRows = '';
+        const columnKeys: any[] = [];
+
+        if (attributes) {
+            attributes.forEach(a => {
+                if (('name' in a) && ('value' in a)) {
+                    attrs += `${a['name']}="${a['value']}"`;
+                }
+            });
+        }
+
+        if (columns) {
+            let i = 0;
+            columns.forEach(c => {
+                if (('title' in c) && ('columnDataKey' in c)) {
+                    i++;
+                    columnKeys.push(c['columnDataKey']);
+                    headers += `<vscode-data-grid-cell cell-type="columnheader" grid-column="${i}">${this.htmlEscape(c['title'].toString())}</vscode-data-grid-cell>`;
+                }
+            });
+            headers = `<vscode-data-grid-row row-type="header">${headers}</vscode-data-grid-row>`;
+        }
+
+        if (rows) {
+            rows.forEach(r => {
+                let i = 0;
+                let dataRow = '';
+                columnKeys.forEach(c => {
+                    if (c in r) {
+                        dataRow += `<vscode-data-grid-cell grid-column="${i}">${this.htmlEscape(r[c].toString())}</vscode-data-grid-cell>`;
+                    } else {
+                        dataRow += `<vscode-data-grid-cell grid-column="${i}"></vscode-data-grid-cell>`;
+                    }
+                });
+                dataRows += `<vscode-data-grid-row>${dataRow}</vscode-data-grid-row>`;
+            });
+        }
+
+        html = `<vscode-data-grid ${attrs}}>${headers}${dataRows}</vscode-data-grid>`;
+
+        return html;
+    }
+
     protected getHTMLCommon(
         displayFieldNames: string[],
         // eslint-disable-next-line @typescript-eslint/naming-convention
