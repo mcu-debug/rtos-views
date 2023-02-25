@@ -332,7 +332,8 @@ export abstract class RTOSBase {
                 if (('title' in c) && ('columnDataKey' in c)) {
                     i++;
                     columnKeys.push(c['columnDataKey']);
-                    headers += `<vscode-data-grid-cell cell-type="columnheader" grid-column="${i}">${this.htmlEscape(c['title'].toString())}</vscode-data-grid-cell>`;
+                    headers += `<vscode-data-grid-cell cell-type="columnheader" grid-column="${i}">
+                                ${this.htmlEscape(c['title'].toString())}</vscode-data-grid-cell>`;
                 }
             });
             headers = `<vscode-data-grid-row row-type="header">${headers}</vscode-data-grid-row>`;
@@ -344,7 +345,8 @@ export abstract class RTOSBase {
                 let dataRow = '';
                 columnKeys.forEach(c => {
                     if (c in r) {
-                        dataRow += `<vscode-data-grid-cell grid-column="${i}">${this.htmlEscape(r[c].toString())}</vscode-data-grid-cell>`;
+                        dataRow += `<vscode-data-grid-cell grid-column="${i}">
+                                    ${this.htmlEscape(r[c].toString())}</vscode-data-grid-cell>`;
                     } else {
                         dataRow += `<vscode-data-grid-cell grid-column="${i}"></vscode-data-grid-cell>`;
                     }
