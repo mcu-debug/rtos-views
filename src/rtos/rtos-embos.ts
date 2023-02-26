@@ -568,8 +568,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 msg = ` embOS variable "OS_Global.pTask" holds ${this.taskCount} tasks which seems invalid for us`;
                 lastHtmlInfo.html = '';
                 lastHtmlInfo.css = '';
-            } else if (lastHtmlInfo.html) {
-                // TODO check if this condition is ok
+            } else if (lastHtmlInfo.html !== '') {
                 msg = ' Following info from last query may be stale.';
             }
 

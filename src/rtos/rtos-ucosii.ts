@@ -591,8 +591,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                 msg = ` uC/OS-II variable OSTaskCtr = ${this.OSTaskCtrVal} seems invalid`;
                 lastHtmlInfo.html = '';
                 lastHtmlInfo.css = '';
-            } else if (lastHtmlInfo.html) {
-                // TODO check if this condition is ok
+            } else if (lastHtmlInfo.html !== '') {
                 msg = ' Following info from last query may be stale.';
             }
 
