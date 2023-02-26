@@ -3,6 +3,10 @@ import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as RTOSCommon from './rtos-common';
 
+/* This overflow value is only valid for non 8 and 16 bit versions.
+   As we're most likely used with a 32-bit or higher system this should be fine */
+const RTOSEMBOS_OS_TIME_OVERFLOW = 0x7fffffff;
+
 // We will have two rows of headers for embOS and the table below describes
 // the columns headers for the two rows and the width of each column as a fraction
 // of the overall space.
@@ -12,7 +16,7 @@ enum DisplayFields {
     Status,
     Priority,
     StackPercent,
-    StackPeakPercent
+    StackPeakPercent,
 }
 
 const RTOSEMBOSItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
@@ -74,8 +78,9 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     private timeInfo: string = '';
     private readonly maxThreads = 1024;
 
-    private stackPattern = 0xCD; /* Seems that OS_TASK_CREATE() does initialize the stack to 0xCD */
-    private stackIncrements = -1; /* negative numbers => high to low address growth on stack (OS_STACK_GROWS_TOWARD_HIGHER_ADDR = 0) */
+    private stackPattern = 0xcd; /* Seems that OS_TASK_CREATE() does initialize the stack to 0xCD */
+    /* negative numbers => high to low address growth on stack (OS_STACK_GROWS_TOWARD_HIGHER_ADDR = 0) */
+    private stackIncrements = -1;
 
     private helpHtml: string | undefined;
 
@@ -179,8 +184,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                         if (Object.hasOwn(this.OSGlobalVal, 'IsRunning')) {
                             isRunning = this.OSGlobalVal['IsRunning']?.val;
-                        }
-                        else {
+                        } else {
                             /* older embOS versions do not have IsRunning struct member */
                             isRunning = '1';
                         }
@@ -252,21 +256,22 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                         let threadCount = 1;
 
+                        const CurOSTime = parseInt(this.OSGlobalVal['Time']?.val) || 0;
+
                         do {
                             let thName = '???';
 
                             if (Object.hasOwn(curTaskObj, 'sName')) {
                                 const matchName = curTaskObj['sName']?.val.match(/"([^*]*)"$/);
                                 thName = matchName ? matchName[1] : curTaskObj['sName']?.val;
-                            }
-                            else if (Object.hasOwn(curTaskObj, 'Name')) {
+                            } else if (Object.hasOwn(curTaskObj, 'Name')) {
                                 /* older embOS versions used Name */
                                 const matchName = curTaskObj['Name']?.val.match(/"([^*]*)"$/);
                                 thName = matchName ? matchName[1] : curTaskObj['Name']?.val;
                             }
 
                             const threadRunning = thAddress === this.pCurrentTaskVal;
-                            const thStateObject = await this.analyzeTaskState(curTaskObj, objectNameEntries);
+                            const thStateObject = await this.analyzeTaskState(curTaskObj, objectNameEntries, CurOSTime);
                             const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern);
 
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
@@ -349,7 +354,8 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
     protected async analyzeTaskState(
         curTaskObj: RTOSCommon.RTOSStrToValueMap,
-        objectNameEntries: Map<number, string>
+        objectNameEntries: Map<number, string>,
+        CurOSTime: number
     ): Promise<TaskState> {
         const state = parseInt(curTaskObj['Stat']?.val);
 
@@ -363,6 +369,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
         if (state & OS_TASK_STATE_TIMEOUT_ACTIVE) {
             pendTimeout = parseInt(curTaskObj['Timeout']?.val);
+            pendTimeout = getRemainingTicksFromTimeout(CurOSTime, pendTimeout);
             TimeoutActive = true;
         }
 
@@ -370,7 +377,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
         switch (maskedState) {
             case OsTaskPendingState.READY:
-                if (pendTimeout) {
+                if (TimeoutActive) {
                     return new TaskDelayed(pendTimeout);
                 } else {
                     return new TaskReady();
@@ -586,6 +593,17 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     }
 }
 
+function getRemainingTicksFromTimeout(curOSTime: number, delayTimeout: number): number {
+    let delay = 0;
+    if (curOSTime <= delayTimeout) {
+        delay = delayTimeout - curOSTime;
+    } else {
+        const timeUntilOverflow = RTOSEMBOS_OS_TIME_OVERFLOW - curOSTime;
+        delay = timeUntilOverflow + delayTimeout;
+    }
+    return delay;
+}
+
 const OS_TASK_STATE_SUSPEND_MASK = 0x03; /* Task suspend count (bit 0 - 1) */
 const OS_TASK_STATE_TIMEOUT_ACTIVE = 0x04; /* Task timeout active (bit 2) */
 const OS_TASK_STATE_MASK = 0xF8; /* Task state mask (bit 3 - bit 7) */
@@ -622,13 +640,13 @@ class TaskReady extends TaskState {
 class TaskDelayed extends TaskState {
     protected delayTicks: number;
 
-    constructor(delayTicks: number) {
+    constructor(delayTimeout: number) {
         super();
-        this.delayTicks = delayTicks;
+        this.delayTicks = delayTimeout;
     }
 
     public describe(): string {
-        return `DELAYED by ${this.delayTicks}`; // TODO Not sure what unit this variable holds
+        return `DELAYED by ${this.delayTicks} ticks`;
     }
 
     public fullData(): any {
@@ -691,7 +709,7 @@ class TaskPending extends TaskState {
                 const eventTypeStr = OsTaskPendingState[event.eventType]
                     ? OsTaskPendingState[event.eventType]
                     : 'Unknown';
-                const eventTimeoutString = event.timeOut ? ` with timeout in ${event.timeOut}` : ''; // TODO Not sure what unit this variable holds
+                const eventTimeoutString = event.timeOut ? ` with timeout in ${event.timeOut} ticks` : '';
                 return `PEND ${eventTypeStr}: ${describeEvent(event)}${eventTimeoutString}`;
             } else {
                 // This should not happen, but we still keep it as a fallback
