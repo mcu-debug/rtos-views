@@ -13,6 +13,13 @@ function main() {
         refreshButton.addEventListener('click', refreshClicked);
     }
 
+    const rtosPanels = document.getElementById('rtos-panels');
+    if (rtosPanels) {
+        rtosPanels.addEventListener('change', (e) => {
+            onRTOSPanelsChange(e.target['activeid']);
+        });
+    }
+
     setVSCodeMessageListener();
 
     setupFoldButtons();
@@ -58,6 +65,15 @@ function refreshClicked() {
     vscode.postMessage({
         type: 'refresh',
         body: {}
+    });
+}
+
+function onRTOSPanelsChange(activeId) {
+    // Passes a message back to the extension context
+    vscode.postMessage({
+        type: 'change',
+        elementId: 'rtos-panels.activeid',
+        body: activeId
     });
 }
 

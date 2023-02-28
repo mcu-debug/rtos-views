@@ -132,6 +132,13 @@ export class RTOSSession {
         this.rtos = undefined;
     }
 
+    public updateUIElementState(elementId: string, state: string): Promise<void> {
+        if (this.rtos) {
+            this.rtos.updateUIElementState(elementId, state);
+        }
+        return new Promise<void>((r) => r());
+    }
+
     public refresh(): Promise<void> {
         if (this.lastFrameId !== undefined) {
             return this.onStopped(this.lastFrameId);
@@ -334,6 +341,16 @@ export class RTOSTracker implements DebugEventHandler {
         return Promise.all(promises);
     }
 
+    public async updateUIElementStateChange(elementId: string, state: string): Promise<any> {
+        const promises = [];
+        if (this.enabled && this.visible) {
+            for (const rtosSession of this.sessionMap.values()) {
+                promises.push(rtosSession.updateUIElementState(elementId, state));
+            }
+        }
+        return Promise.all(promises);
+    }
+
     public toggleRTOSPanel() {
         this.enabled = !this.enabled;
         this.updateRTOSPanelStatus(this.enabled);
@@ -484,6 +501,10 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
             switch (msg?.type) {
                 case 'refresh': {
                     this.parent.update();
+                    break;
+                }
+                case 'change': {
+                    this.parent.updateUIElementStateChange(msg.elementId, msg.body);
                     break;
                 }
             }

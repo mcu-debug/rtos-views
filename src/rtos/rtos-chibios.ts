@@ -706,7 +706,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 stackInfo.stackUsed = Math.max(0, stackInfo.stackSize - stackInfo.stackFree);
             }
 
-            if (this.chConfigDBGFillThreads) {
+            if (this.chConfigDBGFillThreads && !RTOSCommon.RTOSBase.disableStackPeaks) {
                 // get stack peak
                 const unused = await this.scanStackUnused(stackInfo.stackTop, stackInfo.stackEnd, stackInfo.stackFree);
                 stackInfo.stackPeak = this.getStackPeak(stackInfo, unused);
@@ -959,6 +959,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         this.createHmlHelp();
 
         const htmlThreads = this.getHTMLCommon(threadDisplayFieldNames, threadTableItems, this.finalThreads, '');
+
         const htmlGlobalInfo = this.getHTMLDataGrid(globalInfoCols,
                                                     this.globalInfo,
                                                     [{name: 'id', value: 'global'},
@@ -975,42 +976,31 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                                     [{name: 'id', value: 'statistics'},
                                                     {name: 'aria-label', value: 'Statistics'}]);
 
-        htmlContent.html = `
-        <vscode-panels aria-label="ChibiOS RTOS Information Panel">
-            <vscode-panel-tab id="tab-1">
-                GLOBAL
-            </vscode-panel-tab>
-            <vscode-panel-tab id="tab-2">
-                THREADS
-                <vscode-badge appearance="secondary">${this.finalThreads.length}</vscode-badge>
-            </vscode-panel-tab>
-            <vscode-panel-tab id="tab-3">
-                TIMERS
-                <vscode-badge appearance="secondary">${this.virtualTimersInfo.length}</vscode-badge>
-            </vscode-panel-tab>
-            <vscode-panel-tab id="tab-4">
-                STATISTICS
-            </vscode-panel-tab>
-            <vscode-panel-view id="view-1">
-                ${htmlGlobalInfo}
-            </vscode-panel-view>
-             <vscode-panel-view id="view-2">
-                ${htmlThreads.html}
-            </vscode-panel-view>
-            <vscode-panel-view id="view-3">
-                ${htmlVirtualTimersInfo}
-            </vscode-panel-view>
-            <vscode-panel-view id="view-4">
-                ${htmlStatistics}
-            </vscode-panel-view>
-        </vscode-panels>
-        <p>Data collected at ${this.timeInfo}</p>\n`;
+        const htmlRTOSPanels = this.getHTMLPanels([{title: 'GLOBAL'},
+                                                   {title: `THREADS
+                                                            <vscode-badge appearance="secondary">
+                                                            ${this.finalThreads.length}
+                                                            </vscode-badge>`},
+                                                   {title: `TIMERS
+                                                            <vscode-badge appearance="secondary">
+                                                            ${this.virtualTimersInfo.length}
+                                                            </vscode-badge>`},
+                                                   {title: 'STATISTICS'}],
+                                                  [{content: htmlGlobalInfo},
+                                                   {content: htmlThreads.html},
+                                                   {content: htmlVirtualTimersInfo},
+                                                   {content: htmlStatistics}],
+                                                  [{name: 'id', value: 'rtos-panels'},
+                                                   {name: 'aria-label', value: 'ChibiOS RTOS Information Panel'},
+                                                   {name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid')}],
+                                                   true);
+
+        htmlContent.html = `${htmlRTOSPanels}\n<p>Data collected at ${this.timeInfo}</p>\n`;
 
         htmlContent.html += (this.helpHtml || '');
         htmlContent.css = htmlThreads.css;
 
         this.lastValidHtmlContent = htmlContent;
-        // console.log(this.lastValidHtmlContent.html);
         return this.lastValidHtmlContent;
     }
 }

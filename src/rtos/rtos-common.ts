@@ -77,6 +77,7 @@ export abstract class RTOSBase {
     public className: string;
     protected exprValues: Map<string, RTOSVarHelper> = new Map<string, RTOSVarHelper>();
     protected failedWhy: any; // For debug
+    protected uiElementState: Map<string, string> = new Map<string, string>;
 
     protected constructor(public session: vscode.DebugSession, public readonly name: string) {
         this.status = 'none';
@@ -127,6 +128,10 @@ export abstract class RTOSBase {
 
     public onExited(): void {
         this.progStatus = 'exited';
+    }
+
+    public updateUIElementState(elementId: string, state: string) {
+        this.uiElementState.set(elementId, state);
     }
 
     // Refresh the RTOS structures
@@ -311,7 +316,7 @@ export abstract class RTOSBase {
             .replace(/</g, '&lt');
     }
 
-    protected getHTMLDataGrid(columns: any[], rows: any[], attributes: any[]): String {
+    protected getHTMLDataGrid(columns: any[], rows: any[], attributes: any[], hasComplexContent: boolean = false): String {
         let html = '';
         let attrs = '';
         let headers = '';
@@ -346,7 +351,7 @@ export abstract class RTOSBase {
                 columnKeys.forEach(c => {
                     if (c in r) {
                         dataRow += `<vscode-data-grid-cell grid-column="${i}">
-                                    ${this.htmlEscape(r[c].toString())}</vscode-data-grid-cell>`;
+                                    ${hasComplexContent ? r[c].toString() : this.htmlEscape(r[c].toString())}</vscode-data-grid-cell>`;
                     } else {
                         dataRow += `<vscode-data-grid-cell grid-column="${i}"></vscode-data-grid-cell>`;
                     }
@@ -356,6 +361,51 @@ export abstract class RTOSBase {
         }
 
         html = `<vscode-data-grid ${attrs}}>${headers}${dataRows}</vscode-data-grid>`;
+
+        return html;
+    }
+
+
+    protected getHTMLPanels(tabs: any[], views: any[], attributes: any[], hasComplexContent: boolean = false): String {
+        let html = '';
+        let attrs = '';
+        let panelTabs = '';
+        let panelViews = '';
+        const columnKeys: any[] = [];
+
+        if (attributes) {
+            attributes.forEach(a => {
+                if (('name' in a) && ('value' in a)) {
+                    attrs += `${a['name']}="${a['value']}"`;
+                }
+            });
+        }
+
+        if (tabs) {
+            let i = 1;
+            tabs.forEach(t => {
+                if ('title' in t) {
+                    i++;
+                    panelTabs += `<vscode-panel-tab id="tab-${i}">
+                                ${hasComplexContent ? t['title'].toString() : this.htmlEscape(t['title'].toString())}
+                                </vscode-panel-tab>`;
+                }
+            });
+        }
+
+        if (views) {
+            let i = 1;
+            views.forEach(v => {
+                if ('content' in v) {
+                    i++;
+                    panelTabs += `<vscode-panel-view id="view-${i}">
+                                ${hasComplexContent ? v['content'].toString() : this.htmlEscape(v['content'].toString())}
+                                </vscode-panel-view>`;
+                }
+            });
+        }
+
+        html = `<vscode-panels ${attrs}}>${panelTabs}${panelViews}</vscode-panels>`;
 
         return html;
     }
