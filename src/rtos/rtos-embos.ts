@@ -22,13 +22,13 @@ enum DisplayFields {
 const RTOSEMBOSItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
 RTOSEMBOSItems[DisplayFields[DisplayFields.ID_Address]] = { width: 2, headerRow1: '', headerRow2: 'ID / Address' };
 RTOSEMBOSItems[DisplayFields[DisplayFields.TaskName]] = {
-    width: 4,
+    width: 3,
     headerRow1: '',
     headerRow2: 'Name',
     colGapBefore: 1
 };
 RTOSEMBOSItems[DisplayFields[DisplayFields.Status]] = {
-    width: 4,
+    width: 5,
     headerRow1: 'Thread',
     headerRow2: 'Status',
     colType: RTOSCommon.ColTypeEnum.colTypeCollapse
@@ -705,10 +705,11 @@ class TaskPending extends TaskState {
             }
 
             if (event) {
-                const eventTypeStr = OsTaskPendingState[event.eventType]
-                    ? OsTaskPendingState[event.eventType]
+                const maskedEventType = event.eventType & OS_TASK_STATE_MASK;
+                const eventTypeStr = OsTaskPendingState[maskedEventType]
+                    ? OsTaskPendingState[maskedEventType]
                     : 'Unknown';
-                const eventTimeoutString = event.timeOut ? ` with timeout in ${event.timeOut} ticks` : '';
+                const eventTimeoutString = event.timeOut ? ` for ${event.timeOut} ticks` : '';
                 return `PEND ${eventTypeStr}: ${describeEvent(event)}${eventTimeoutString}`;
             } else {
                 // This should not happen, but we still keep it as a fallback
