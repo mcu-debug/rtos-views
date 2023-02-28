@@ -7,7 +7,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('Hello from rtos-views!');
         })
     );
-    const rtosTracker = new RTOSTracker(context);
+    const rtosTracker = new RTOSTracker(context); // eslint-disable-line @typescript-eslint/no-unused-vars
 }
 
-export function deactivate() { }
+export function deactivate() { } // eslint-disable-line @typescript-eslint/no-empty-function
