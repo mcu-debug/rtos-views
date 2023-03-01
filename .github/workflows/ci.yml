@@ -39,10 +39,8 @@ jobs:
               with:
                   path: ./node_modules
                   key: npm-${{ hashFiles('./package-lock.json') }}
-            - name: Install VSCE for packaging
-              run: npm install vsce
             - name: Package Binary
-              run: ./node_modules/vsce/vsce package -o rtos-views.vsix
+              run: npm run package
             - name: Upload Artifact
               uses: actions/upload-artifact@v3
               with:
