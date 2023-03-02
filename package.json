@@ -97,20 +97,10 @@
             ]
         }
     },
-    "scripts-unused": {
-        "vscode:prepublish": "npm run package",
-        "compile": "webpack",
-        "watch": "webpack --watch",
-        "package": "webpack --mode production --devtool hidden-source-map",
-        "compile-tests": "tsc -p . --outDir out",
-        "watch-tests": "tsc -p . -w --outDir out",
-        "pretest": "npm run compile-tests && npm run compile && npm run lint",
-        "lint": "eslint src --ext ts",
-        "test": "node ./out/test/runTest.js"
-    },
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -noEmit && node .esbuild.config.js --analyze",
+        "package": "node ./node_modules/@vscode/vsce/vsce package",
         "lint": "eslint src --ext ts",
         "watch": "node .esbuild.config.js --watch --analyze",
         "test": "node ./src/test/runTest.js"
@@ -135,6 +125,7 @@
     },
     "dependencies": {
         "@vscode/debugprotocol": "^1.59.0",
+        "@vscode/vsce": "^2.18.0",
         "@vscode/webview-ui-toolkit": "^1.1.0",
         "debug-tracker-vscode": "^0.0.14"
     },
