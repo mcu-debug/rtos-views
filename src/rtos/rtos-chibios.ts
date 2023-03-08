@@ -114,32 +114,32 @@ threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = {
 
 const threadDisplayFieldNames: string[] = Object.keys(threadTableItems);
 
-const globalInfoCols = [{columnDataKey: 'name', title: 'Name'}, {columnDataKey: 'value', title: 'Value'}];
+const globalInfoCols = [{ columnDataKey: 'name', title: 'Name' }, { columnDataKey: 'value', title: 'Value' } ];
 
-const virtualTimersCols = [{columnDataKey: 'timer', title: 'Timer'},
-                           {columnDataKey: 'time', title: 'Time'},
-                           {columnDataKey: 'delta', title: 'Delta'},
-                           {columnDataKey: 'callback', title: 'Callback'},
-                           {columnDataKey: 'params', title: 'Parameters'},
-                           {columnDataKey: 'last', title: 'Last Deadline'},
-                           {columnDataKey: 'reload', title: 'Reload'} ];
+const virtualTimersCols = [{ columnDataKey: 'timer', title: 'Timer' },
+                           { columnDataKey: 'time', title: 'Time' },
+                           { columnDataKey: 'delta', title: 'Delta' },
+                           { columnDataKey: 'callback', title: 'Callback' },
+                           { columnDataKey: 'params', title: 'Parameters' },
+                           { columnDataKey: 'last', title: 'Last Deadline' },
+                           { columnDataKey: 'reload', title: 'Reload' }];
 
-const statisticsCols = [{columnDataKey: 'description', title: 'Measured Section'},
-                        {columnDataKey: 'best', title: 'Best Case'},
-                        {columnDataKey: 'worst', title: 'Worst Case'},
-                        {columnDataKey: 'counter', title: 'Iterations'},
-                        {columnDataKey: 'cumulative', title: 'Cumulative Time'} ];
+const statisticsCols = [{ columnDataKey: 'description', title: 'Measured Section' },
+                        { columnDataKey: 'best', title: 'Best Case' },
+                        { columnDataKey: 'worst', title: 'Worst Case' },
+                        { columnDataKey: 'counter', title: 'Iterations' },
+                        { columnDataKey: 'cumulative', title: 'Cumulative Time' } ];
 
-const traceCols = [{columnDataKey: 'event', title: 'Event'},
-                   {columnDataKey: 'eventType', title: 'Type'},
-                   {columnDataKey: 'time', title: 'System Time'},
-                   {columnDataKey: 'rtstamp', title: 'RT Stamp'},
-                   {columnDataKey: 'from', title: 'From'},
-                   {columnDataKey: 'fromName', title: 'Name'},
-                   {columnDataKey: 'state', title: 'State'},
-                   {columnDataKey: 'obj_msg', title: 'Obj/Msg'},
-                   {columnDataKey: 'to', title: 'To'},
-                   {columnDataKey: 'toName', title: 'Name'}];
+const traceCols = [{ columnDataKey: 'event', title: 'Event' },
+                   { columnDataKey: 'eventType', title: 'Type' },
+                   { columnDataKey: 'time', title: 'System Time' },
+                   { columnDataKey: 'rtstamp', title: 'RT Stamp' },
+                   { columnDataKey: 'from', title: 'From' },
+                   { columnDataKey: 'fromName', title: 'Name' },
+                   { columnDataKey: 'state', title: 'State' },
+                   { columnDataKey: 'obj_msg', title: 'Obj/Msg' },
+                   { columnDataKey: 'to', title: 'To' },
+                   { columnDataKey: 'toName', title: 'Name' }];
 
 enum chTraceEventTypes {
     READY = 'Ready',
@@ -246,14 +246,14 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
     private chConfigDBGFillThreads: boolean = false;
 
-    private kernelVersion: String = chMessages.UNKNOWN;
+    private kernelVersion: string = chMessages.UNKNOWN;
     private rlistCurrent: number = 0;
     private threadOffset: number = 0;
     private threadSize: number = 0;
     private traceRecordSize: number = 0;
     private smp: boolean = false;
     private hasWAEND: boolean = false;
-    private hasWABASE: boolean = false
+    private hasWABASE: boolean = false;
 
     private stale: boolean = true;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
@@ -523,7 +523,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     await this.getGlobalInfo(frameId);
                     await this.getThreadInfo(getNumberNVL(reglistVal, 0), frameId);
                     await this.getVirtualTimersInfo(frameId);
-                    await this.getStatisticsInfo(frameId);
+                    await this.getStatisticsInfo();
                     resolve();
                 }
                 catch (e) {
@@ -541,20 +541,20 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         const debug = await this.getVarChildrenObj(this.chCH0['dbg']?.ref, 'dbg') || {};
         const rlist = await this.getVarChildrenObj(this.chCH0['rlist']?.ref, 'rlist') || {};
 
-        this.globalInfo.push({name: chMessages.KERNEL_VERSION, value: this.kernelVersion});
+        this.globalInfo.push({ name: chMessages.KERNEL_VERSION, value: this.kernelVersion });
         this.globalInfo.push({
             name: chMessages.SYSTEM_STATE,
             value: system['state'] ? system['state'].val : chMessages.UNKNOWN
         });
 
         if (this.chVTList['lasttime']) {
-            this.globalInfo.push({name: chMessages.SYSTEM_TIME_MODE, value: chMessages.TICKLESS});
-            this.globalInfo.push({name: chMessages.LAST_EVENT_TIME, value: this.chVTList['lasttime'].val});
+            this.globalInfo.push({ name: chMessages.SYSTEM_TIME_MODE, value: chMessages.TICKLESS });
+            this.globalInfo.push({ name: chMessages.LAST_EVENT_TIME, value: this.chVTList['lasttime'].val });
         } else if (this.chVTList['systime']) {
-            this.globalInfo.push({name: chMessages.SYSTEM_TIME_MODE, value: chMessages.SYSTICK});
-            this.globalInfo.push({name: chMessages.SYSTEM_TIME, value: this.chVTList['systime'].val});
+            this.globalInfo.push({ name: chMessages.SYSTEM_TIME_MODE, value: chMessages.SYSTICK });
+            this.globalInfo.push({ name: chMessages.SYSTEM_TIME, value: this.chVTList['systime'].val });
         } else {
-            this.globalInfo.push({name: chMessages.SYSTEM_TIME, value: chMessages.UNKNOWN});
+            this.globalInfo.push({ name: chMessages.SYSTEM_TIME, value: chMessages.UNKNOWN });
         }
 
         if (debug['panic_msg']) {
@@ -564,7 +564,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 chMessages.NONE)
             });
         } else {
-            this.globalInfo.push({name: chMessages.PANIC_MESSAGE, value: chMessages.NOT_ENABLED});
+            this.globalInfo.push({ name: chMessages.PANIC_MESSAGE, value: chMessages.NOT_ENABLED });
         }
 
         if (debug['isr_cnt']) {
@@ -573,7 +573,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 value: getNumber(debug['isr_cnt'].val) === 0 ? 'not within ISR' : 'within ISR - ' + debug['isr_cnt']?.val
             });
         } else {
-            this.globalInfo.push({name: chMessages.ISR_LEVEL, value: chMessages.NOT_ENABLED});
+            this.globalInfo.push({ name: chMessages.ISR_LEVEL, value: chMessages.NOT_ENABLED });
         }
 
         if (debug['lock_cnt']) {
@@ -583,11 +583,11 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 ? 'not within lock' : 'within lock - ' + debug['lock_cnt']?.val
             });
         } else {
-            this.globalInfo.push({name: chMessages.LOCK_LEVEL, value: chMessages.NOT_ENABLED});
+            this.globalInfo.push({ name: chMessages.LOCK_LEVEL, value: chMessages.NOT_ENABLED });
         }
 
         if (rlist['preempt']) {
-            this.globalInfo.push({name: chMessages.RLIST_PREEMPT, value: rlist['preempt']});
+            this.globalInfo.push({ name: chMessages.RLIST_PREEMPT, value: rlist['preempt'] });
         }
     }
 
@@ -731,20 +731,21 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                 dlist = await this.getVarChildrenObj(virtualTimer['dlist']?.ref, 'dlist') || {};
                 const delta = getNumberNVL(dlist['delta']?.val, 0);
                 time = time + delta;
-                this.virtualTimersInfo.push({timer: timer,
-                                             time: time,
-                                             delta: dlist['delta']?.val,
-                                             callback: virtualTimer['func']?.val,
-                                             params: virtualTimer['par']?.val,
-                                             last: virtualTimer['last'] ? virtualTimer['par'].val : '-',
-                                             reload: virtualTimer['reload'] ? virtualTimer['reload'].val : '-'
-                                            });
+                this.virtualTimersInfo.push({
+                    timer: timer,
+                    time: time,
+                    delta: dlist['delta']?.val,
+                    callback: virtualTimer['func']?.val,
+                    params: virtualTimer['par']?.val,
+                    last: virtualTimer['last'] ? virtualTimer['par'].val : '-',
+                    reload: virtualTimer['reload'] ? virtualTimer['reload'].val : '-'
+                });
                 current = getNumberNVL(dlist['next'].val, 0);
             }
         }
     }
 
-    protected async getStatisticsInfo(frameId: number) {
+    protected async getStatisticsInfo() {
 
         if (this.chCH0['kernel_stats']) {
 
@@ -756,19 +757,23 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             const kernelStatsCriticalIsr = await this.getVarChildrenObj(kernelStats['m_crit_isr']?.ref, 'm_crit_isr');
 
             if (nIRQVal) {
-                this.statistics.push({description: chMessages.IRQS_COUNTER,
-                                      best: '',
-                                      worst: '',
-                                      counter: nIRQVal.toString(),
-                                      cumulative: ''});
+                this.statistics.push({
+                    description: chMessages.IRQS_COUNTER,
+                    best: '',
+                    worst: '',
+                    counter: nIRQVal.toString(),
+                    cumulative: ''
+                });
             }
 
             if (nCtxSwcVal) {
-                this.statistics.push({description: chMessages.CTX_SW_COUNTER,
-                                      best: '',
-                                      worst: '',
-                                      counter: nCtxSwcVal.toString(),
-                                      cumulative: ''});
+                this.statistics.push({
+                    description: chMessages.CTX_SW_COUNTER,
+                    best: '',
+                    worst: '',
+                    counter: nCtxSwcVal.toString(),
+                    cumulative: ''
+                });
             }
 
             if (kernelStatsCriticalThd) {
@@ -784,11 +789,13 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     cumulative = 0;
                 }
 
-                this.statistics.push({description: chMessages.THREAD_CRITICAL_ZONES,
-                                      best: best.toString(),
-                                      worst: worst.toString(),
-                                      counter: n.toString(),
-                                      cumulative: cumulative.toString()});
+                this.statistics.push({
+                    description: chMessages.THREAD_CRITICAL_ZONES,
+                    best: best.toString(),
+                    worst: worst.toString(),
+                    counter: n.toString(),
+                    cumulative: cumulative.toString()
+                });
             }
 
             if (kernelStatsCriticalIsr) {
@@ -804,11 +811,13 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                     cumulative = 0;
                 }
 
-                this.statistics.push({description: chMessages.IRQS_CRITTICAL_ZONES,
-                                      best: best.toString(),
-                                      worst: worst.toString(),
-                                      counter: n.toString(),
-                                      cumulative: cumulative.toString()});
+                this.statistics.push({
+                    description: chMessages.IRQS_CRITTICAL_ZONES,
+                    best: best.toString(),
+                    worst: worst.toString(),
+                    counter: n.toString(),
+                    cumulative: cumulative.toString()
+                });
             }
 
         }
@@ -931,7 +940,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                         i = 0;
                     }
 
-                } while (i !== next)
+                } while (i !== next);
             }
         }
 
@@ -962,38 +971,38 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
         const htmlGlobalInfo = this.getHTMLDataGrid(globalInfoCols,
                                                     this.globalInfo,
-                                                    [{name: 'id', value: 'global'},
-                                                     {name: 'aria-label', value: 'Global Variables'},
-                                                     {name: 'grid-template-columns', value: '30% 70%'}]);
+                                                    [{ name: 'id', value: 'global' },
+                                                     { name: 'aria-label', value: 'Global Variables' },
+                                                     { name: 'grid-template-columns', value: '30% 70%' }]);
 
         const htmlVirtualTimersInfo = this.getHTMLDataGrid(virtualTimersCols,
                                                            this.virtualTimersInfo,
-                                                           [{name: 'id', value: 'timers'},
-                                                            {name: 'aria-label', value: 'Virtual Timers'}]);
+                                                           [{ name: 'id', value: 'timers' },
+                                                            { name: 'aria-label', value: 'Virtual Timers' }]);
 
         const htmlStatistics = this.getHTMLDataGrid(statisticsCols,
                                                     this.statistics,
-                                                    [{name: 'id', value: 'statistics'},
-                                                    {name: 'aria-label', value: 'Statistics'}]);
+                                                    [{ name: 'id', value: 'statistics' },
+                                                     { name: 'aria-label', value: 'Statistics' }]);
 
-        const htmlRTOSPanels = this.getHTMLPanels([{title: 'GLOBAL'},
-                                                   {title: `THREADS
+        const htmlRTOSPanels = this.getHTMLPanels([{ title: 'GLOBAL' },
+                                                   { title: `THREADS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.finalThreads.length}
-                                                            </vscode-badge>`},
-                                                   {title: `TIMERS
+                                                            </vscode-badge>` },
+                                                   { title: `TIMERS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.virtualTimersInfo.length}
-                                                            </vscode-badge>`},
-                                                   {title: 'STATISTICS'}],
-                                                  [{content: htmlGlobalInfo},
-                                                   {content: htmlThreads.html},
-                                                   {content: htmlVirtualTimersInfo},
-                                                   {content: htmlStatistics}],
-                                                  [{name: 'id', value: 'rtos-panels'},
-                                                   {name: 'aria-label', value: 'ChibiOS RTOS Information Panel'},
-                                                   {name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid')},
-                                                   {name: 'debug-session-id', value: this.session.id}],
+                                                            </vscode-badge>` },
+                                                   { title: 'STATISTICS' }],
+                                                  [{ content: htmlGlobalInfo },
+                                                   { content: htmlThreads.html },
+                                                   { content: htmlVirtualTimersInfo },
+                                                   { content: htmlStatistics }],
+                                                  [{ name: 'id', value: 'rtos-panels' },
+                                                   { name: 'aria-label', value: 'ChibiOS RTOS Information Panel' },
+                                                   { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
+                                                   { name: 'debug-session-id', value: this.session.id }],
                                                    true);
 
         htmlContent.html = `${htmlRTOSPanels}\n<p>Data collected at ${this.timeInfo}</p>\n`;
