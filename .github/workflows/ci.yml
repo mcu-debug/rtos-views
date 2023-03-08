@@ -1,0 +1,64 @@
+name: ci
+
+on:
+    push:
+        branches:
+            - main
+        tags:
+            - '*'
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    setup:
+        name: Setup
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Cache NPM Install
+              id: cache-npm
+              uses: actions/cache@v3
+              with:
+                  path: ./node_modules
+                  key: npm-${{ hashFiles('./package-lock.json') }}
+            - name: Install NPM dependencies
+              if: steps.cache-npm.outputs.cache-hit != 'true'
+              run: |
+                  npm install
+
+    build:
+        name: Build
+        needs: setup
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Load NPM install
+              id: cache-npm
+              uses: actions/cache@v3
+              with:
+                  path: ./node_modules
+                  key: npm-${{ hashFiles('./package-lock.json') }}
+            - name: Package Binary
+              run: npm run package
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: vsix-package
+                  path: ./*.vsix
+                  retention-days: 10
+
+    lint:
+        name: Lint
+        needs: setup
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Load NPM install
+              id: cache-npm
+              uses: actions/cache@v3
+              with:
+                  path: ./node_modules
+                  key: npm-${{ hashFiles('./package-lock.json') }}
+            - name: Lint Project
+              run: npm run lint

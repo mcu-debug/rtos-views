@@ -2,11 +2,16 @@
 
 ## 0.0.6 - Unreleased
 
-Change: uC/OS-II and embOS RTOS view now also respect the `disableStackPeaks` setting (previously only FreeRTOS did this)
+Change: all RTOS implementation that have stack peaks (uC/OS-II, embOS, ChibiOS, FreeRTOS) now respect the `disableStackPeaks` setting (previously only FreeRTOS did this)
+
+Bugfix: [Fix delay times showing up wrong and add ticks as unit for embOS](https://github.com/mcu-debug/rtos-views/issues/30)
+
+Bugfix: embOS did show the event type pending on
 
 ## 0.0.5 - Feb 20, 2023
 
 Bug fix: [Issue#22: Fix issue with embOS not working](https://github.com/mcu-debug/rtos-views/issues/22)
+
 Bug fix: Fix an issue where we are tracking a session that started but never finished starting. So, it looked like we are tracking a zombie session that never actually started.
 
 ## 0.0.4 - Jan 27, 2023
