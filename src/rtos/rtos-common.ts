@@ -359,6 +359,7 @@ export abstract class RTOSBase {
                     }
                 });
                 dataRows += `<vscode-data-grid-row>${dataRow}</vscode-data-grid-row>`;
+                i++;
             });
         }
 
@@ -372,7 +373,6 @@ export abstract class RTOSBase {
         let attrs = '';
         let panelTabs = '';
         let panelViews = '';
-        const columnKeys: any[] = [];
 
         if (attributes) {
             attributes.forEach(a => {
