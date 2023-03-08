@@ -992,7 +992,8 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                                    {content: htmlStatistics}],
                                                   [{name: 'id', value: 'rtos-panels'},
                                                    {name: 'aria-label', value: 'ChibiOS RTOS Information Panel'},
-                                                   {name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid')}],
+                                                   {name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid')},
+                                                   {name: 'debug-session-id', value: this.session.id}],
                                                    true);
 
         htmlContent.html = `${htmlRTOSPanels}\n<p>Data collected at ${this.timeInfo}</p>\n`;

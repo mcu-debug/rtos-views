@@ -130,8 +130,10 @@ export abstract class RTOSBase {
         this.progStatus = 'exited';
     }
 
-    public updateUIElementState(elementId: string, state: string) {
-        this.uiElementState.set(elementId, state);
+    public updateUIElementState(debugSessionId: string, elementId: string, state: string) {
+        if (this.session.id.localeCompare(debugSessionId) === 0) {
+            this.uiElementState.set(elementId, state);
+        }
     }
 
     // Refresh the RTOS structures
@@ -364,7 +366,6 @@ export abstract class RTOSBase {
 
         return html;
     }
-
 
     protected getHTMLPanels(tabs: any[], views: any[], attributes: any[], hasComplexContent: boolean = false): String {
         let html = '';

@@ -132,9 +132,9 @@ export class RTOSSession {
         this.rtos = undefined;
     }
 
-    public updateUIElementState(elementId: string, state: string): Promise<void> {
+    public updateUIElementState(debugSessionId: string, elementId: string, state: string): Promise<void> {
         if (this.rtos) {
-            this.rtos.updateUIElementState(elementId, state);
+            this.rtos.updateUIElementState(debugSessionId, elementId, state);
         }
         return new Promise<void>((r) => r());
     }
@@ -341,11 +341,11 @@ export class RTOSTracker implements DebugEventHandler {
         return Promise.all(promises);
     }
 
-    public async updateUIElementStateChange(elementId: string, state: string): Promise<any> {
+    public async updateUIElementStateChange(debugSessionId: string, elementId: string, state: string): Promise<any> {
         const promises = [];
         if (this.enabled && this.visible) {
             for (const rtosSession of this.sessionMap.values()) {
-                promises.push(rtosSession.updateUIElementState(elementId, state));
+                promises.push(rtosSession.updateUIElementState(debugSessionId, elementId, state));
             }
         }
         return Promise.all(promises);
@@ -504,7 +504,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
                     break;
                 }
                 case 'change': {
-                    this.parent.updateUIElementStateChange(msg.elementId, msg.body);
+                    this.parent.updateUIElementStateChange(msg.debugSessionId, msg.elementId, msg.body);
                     break;
                 }
             }
