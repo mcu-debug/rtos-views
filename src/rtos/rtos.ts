@@ -228,7 +228,7 @@ class MyDebugTracker {
                 break;
             }
             case OtherDebugEvents.FirstStackTrace: {
-                // TODOL Technically, we don't need the frameId any more but it won't hurt to wait a bit
+                // TODO Technically, we don't need the frameId any more but it won't hurt to wait a bit
                 // until most of VSCode updates itself before we start queries
                 const frameId =
                     (event.stackTrace &&
