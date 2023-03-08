@@ -309,7 +309,7 @@ export abstract class RTOSBase {
         });
     }
 
-    protected htmlEscape(s: String): String {
+    protected htmlEscape(s: string): string {
         return s
             .replace(/&/g, '&amp')
             .replace(/'/g, '&apos')
@@ -318,7 +318,7 @@ export abstract class RTOSBase {
             .replace(/</g, '&lt');
     }
 
-    protected getHTMLDataGrid(columns: any[], rows: any[], attributes: any[], hasComplexContent: boolean = false): String {
+    protected getHTMLDataGrid(columns: any[], rows: any[], attributes: any[], hasComplexContent: boolean = false): string {
         let html = '';
         let attrs = '';
         let headers = '';
@@ -367,7 +367,7 @@ export abstract class RTOSBase {
         return html;
     }
 
-    protected getHTMLPanels(tabs: any[], views: any[], attributes: any[], hasComplexContent: boolean = false): String {
+    protected getHTMLPanels(tabs: any[], views: any[], attributes: any[], hasComplexContent: boolean = false): string {
         let html = '';
         let attrs = '';
         let panelTabs = '';
@@ -399,7 +399,7 @@ export abstract class RTOSBase {
             views.forEach(v => {
                 if ('content' in v) {
                     i++;
-                    panelTabs += `<vscode-panel-view id="view-${i}">
+                    panelViews += `<vscode-panel-view id="view-${i}">
                                 ${hasComplexContent ? v['content'].toString() : this.htmlEscape(v['content'].toString())}
                                 </vscode-panel-view>`;
                 }
