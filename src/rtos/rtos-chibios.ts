@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { breadcrumbTemplate } from '@microsoft/fast-foundation';
-import { buffer } from 'stream/consumers';
 import * as vscode from 'vscode';
 import * as RTOSCommon from './rtos-common';
 
