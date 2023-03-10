@@ -12,6 +12,7 @@
         "sourceMap": true,
         "allowJs": true,
         "checkJs": false,
+        "skipLibCheck": true,
         // "jsx": "react",
         "forceConsistentCasingInFileNames": true,
         "importHelpers": true,
