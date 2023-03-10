@@ -983,18 +983,18 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                                     [{ name: 'id', value: 'statistics' },
                                                      { name: 'aria-label', value: 'Statistics' }]);
 
-        const htmlRTOSPanels = this.getHTMLPanels([{ title: 'GLOBAL' },
-                                                   { title: `THREADS
+        const htmlRTOSPanels = this.getHTMLPanels([{ title: `THREADS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.finalThreads.length}
                                                             </vscode-badge>` },
+                                                   { title: 'GLOBAL' },
                                                    { title: `TIMERS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.virtualTimersInfo.length}
                                                             </vscode-badge>` },
                                                    { title: 'STATISTICS' }],
-                                                  [{ content: htmlGlobalInfo },
-                                                   { content: htmlThreads.html },
+                                                  [{ content: htmlThreads.html },
+                                                   { content: htmlGlobalInfo },
                                                    { content: htmlVirtualTimersInfo },
                                                    { content: htmlStatistics }],
                                                   [{ name: 'id', value: 'rtos-panels' },
