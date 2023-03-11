@@ -13,6 +13,13 @@ function main() {
         refreshButton.addEventListener('click', refreshClicked);
     }
 
+    const rtosPanels = document.getElementById('rtos-panels');
+    if (rtosPanels) {
+        rtosPanels.addEventListener('change', (e) => {
+            onRTOSPanelsChange(e.target.getAttribute('debug-session-id'), e.target['activeid']);
+        });
+    }
+
     setVSCodeMessageListener();
 
     setupFoldButtons();
@@ -58,6 +65,16 @@ function refreshClicked() {
     vscode.postMessage({
         type: 'refresh',
         body: {}
+    });
+}
+
+function onRTOSPanelsChange(debugSessionId, activeId) {
+    // Passes a message back to the extension context
+    vscode.postMessage({
+        type: 'change',
+        debugSessionId: debugSessionId,
+        elementId: 'rtos-panels.activeid',
+        body: activeId
     });
 }
 
