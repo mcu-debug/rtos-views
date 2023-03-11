@@ -1,25 +1,27 @@
 # Change Log
 
-## 0.0.6 - Unreleased
+## 0.0.6 - Mar 11, 2023
 
-Change: all RTOS implementation that have stack peaks (uC/OS-II, embOS, ChibiOS, FreeRTOS) now respect the `disableStackPeaks` setting (previously only FreeRTOS did this)
+-   ChibiOS contains much more information (Timers, Globals, etc.) than before and compared to all the other RTOSes.
 
-Bugfix: [Fix delay times showing up wrong and add ticks as unit for embOS](https://github.com/mcu-debug/rtos-views/issues/30)
+-   Change: all RTOS implementation that have stack peaks (uC/OS-II, embOS, ChibiOS, FreeRTOS) now respect the `disableStackPeaks` setting (previously only FreeRTOS did this)
 
-Bugfix: embOS did show the event type pending on
+-   Bugfix: [Fix delay times showing up wrong and add ticks as unit for embOS](https://github.com/mcu-debug/rtos-views/issues/30)
+
+-   Bugfix: embOS did show the event type pending on
 
 ## 0.0.5 - Feb 20, 2023
 
-Bug fix: [Issue#22: Fix issue with embOS not working](https://github.com/mcu-debug/rtos-views/issues/22)
+-   Bug fix: [Issue#22: Fix issue with embOS not working](https://github.com/mcu-debug/rtos-views/issues/22)
 
-Bug fix: Fix an issue where we are tracking a session that started but never finished starting. So, it looked like we are tracking a zombie session that never actually started.
+-   Bug fix: Fix an issue where we are tracking a session that started but never finished starting. So, it looked like we are tracking a zombie session that never actually started.
 
 ## 0.0.4 - Jan 27, 2023
 
-Bug fix: [Issue#16: XRTOS view keeps turning on after restarting vscode](https://github.com/mcu-debug/rtos-views/issues/16)
+-   Bug fix: [Issue#16: XRTOS view keeps turning on after restarting vscode](https://github.com/mcu-debug/rtos-views/issues/16)
 
 ## 0.0.3 - Jan 10, 2023
 
-Bug fix: [PR#12: Fix bug when OS_TASK_CREATE_EXT_EN is enabled, but code is using OSTaskCreate()](https://github.com/mcu-debug/rtos-views/pull/12)
+-   Bug fix: [PR#12: Fix bug when OS_TASK_CREATE_EXT_EN is enabled, but code is using OSTaskCreate()](https://github.com/mcu-debug/rtos-views/pull/12)
 
-Bug fix: [PR#11: Fix issue with not showing uC/OS-II thread names](https://github.com/mcu-debug/rtos-views/pull/11)
+-   Bug fix: [PR#11: Fix issue with not showing uC/OS-II thread names](https://github.com/mcu-debug/rtos-views/pull/11)
