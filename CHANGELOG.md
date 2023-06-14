@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.7 - Jun 14, 2023
+
+-   Just a maintenance release
+
 ## 0.0.6 - Mar 11, 2023
 
 -   ChibiOS contains much more information (Timers, Globals, etc.) than before and compared to all the other RTOSes.

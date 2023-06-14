@@ -2,7 +2,7 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "publisher": "mcu-debug",
     "preview": true,
     "repository": {
@@ -100,10 +100,12 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "compile": "tsc -noEmit && node .esbuild.config.js --analyze",
-        "package": "node ./node_modules/@vscode/vsce/vsce package",
+        "packagex": "node ./node_modules/@vscode/vsce/vsce package",
         "lint": "eslint src --ext ts",
         "watch": "node .esbuild.config.js --watch --analyze",
-        "test": "node ./src/test/runTest.js"
+        "test": "node ./src/test/runTest.js",
+        "package": "node ./release.js --package",
+        "publish": "node ./release.js --publish --vsx-also"
     },
     "devDependencies": {
         "@types/glob": "^8.0.0",
