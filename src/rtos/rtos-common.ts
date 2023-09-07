@@ -595,7 +595,8 @@ export class RTOSVarHelper {
             const msg = (e as any)?.message as string;
             if (msg) {
                 if (
-                    msg === 'Busy' || // Cortex-Debug
+                    msg === 'notStopped' ||  // Official busy signal introduced in the API recently
+                    msg === 'Busy' || // Cortex-Debug old message
                     msg.includes('process is running') // cppdbg
                 ) {
                     // For cppdbg, the whole message is 'Unable to perform this action because the process is running.'

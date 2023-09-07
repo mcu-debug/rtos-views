@@ -2,7 +2,7 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "publisher": "mcu-debug",
     "preview": true,
     "repository": {
@@ -29,8 +29,7 @@
     "activationEvents": [
         "onDebugResolve:cortex-debug",
         "onDebugResolve:cppdbg",
-        "onDebugResolve:cspy",
-        "onCommand:mcu-debug.rtos-views.helloWorld"
+        "onDebugResolve:cspy"
     ],
     "main": "./dist/extension.js",
     "contributes": {

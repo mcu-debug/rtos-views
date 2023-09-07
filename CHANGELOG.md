@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.8 - Sep 7, 2023
+
+-   Updated to newest debug protocol APIs. No real changes
+
 ## 0.0.7 - Jun 14, 2023
 
 -   Just a maintenance release
