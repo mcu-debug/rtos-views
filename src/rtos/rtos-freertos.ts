@@ -395,7 +395,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : state);
                             } else {
                                 const xTaskRunState = thInfo['xTaskRunState']?.val;
-                                if (xTaskRunState === '-1' || xTaskRunState === '-2') {
+                                if (xTaskRunState === '-2') {
+                                    threadRunning = false;
+                                    mySetter(DisplayFields.Status, 'YIELD');
+                                }else if (xTaskRunState === '-1') {
                                     threadRunning = false;
                                     mySetter(DisplayFields.Status, state);
                                 } else {
