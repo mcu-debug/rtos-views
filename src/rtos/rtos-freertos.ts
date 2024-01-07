@@ -91,13 +91,14 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xDelayedTaskList2: RTOSCommon.RTOSVarHelperMaybe;
     private xPendingReadyList: RTOSCommon.RTOSVarHelperMaybe;
     private pxCurrentTCB: RTOSCommon.RTOSVarHelperMaybe;
+    private pxCurrentTCBs: RTOSCommon.RTOSVarHelperMaybe;
     private xSuspendedTaskList: RTOSCommon.RTOSVarHelperMaybe;
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
 
     private stale = true;
-    private curThreadAddr = 0;
+    private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private timeInfo = '';
@@ -144,7 +145,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     useFrameId,
                     'xPendingReadyList'
                 );
-                this.pxCurrentTCB = await this.getVarIfEmpty(this.pxCurrentTCB, useFrameId, 'pxCurrentTCB');
+                this.pxCurrentTCB = await this.getVarIfEmpty(this.pxCurrentTCB, useFrameId, 'pxCurrentTCB', true);
+                this.pxCurrentTCBs = await this.getVarIfEmpty(this.pxCurrentTCBs, useFrameId, 'pxCurrentTCBs', true);
+                if (this.pxCurrentTCBs === null && this.pxCurrentTCB === null) {
+                    this.pxCurrentTCB = undefined;
+                    this.pxCurrentTCBs = undefined;
+                    throw Error('pxCurrentTCB nor pxCurrentTCBs not found');
+                }
                 this.xSuspendedTaskList = await this.getVarIfEmpty(
                     this.xSuspendedTaskList,
                     useFrameId,
@@ -220,15 +227,19 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
     private updateCurrentThreadAddr(frameId: number): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            this.pxCurrentTCB?.getValue(frameId).then(
-                (ret) => {
-                    this.curThreadAddr = parseInt(ret || '');
-                    resolve();
-                },
-                (e) => {
-                    reject(e);
-                }
-            );
+            if (this.pxCurrentTCB !== null) {
+                this.pxCurrentTCB?.getValue(frameId).then(
+                    (ret) => {
+                        this.curThreadInfo = parseInt(ret || '');
+                        resolve();
+                    },
+                    (e) => {
+                        reject(e);
+                    }
+                );
+            } else {
+                resolve();
+            }
         });
     }
 
@@ -364,7 +375,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 `((TCB_t*)${RTOSCommon.hexFormat(threadId)})`,
                                 frameId
                             );
-                            const threadRunning = threadId === this.curThreadAddr;
+                            let threadRunning : boolean;
                             const tmpThName =
                                 (await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId)) || '';
                             const match = tmpThName.match(/"([^*]*)"$/);
@@ -379,7 +390,22 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                             mySetter(DisplayFields.ID, thInfo['uxTCBNumber']?.val || '??');
                             mySetter(DisplayFields.Address, RTOSCommon.hexFormat(threadId));
                             mySetter(DisplayFields.TaskName, thName);
-                            mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : state);
+                            if (this.pxCurrentTCB !== null) {
+                                threadRunning = threadId === this.curThreadInfo;
+                                mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : state);
+                            } else {
+                                const xTaskRunState = thInfo['xTaskRunState']?.val;
+                                if (xTaskRunState === '-2') {
+                                    threadRunning = false;
+                                    mySetter(DisplayFields.Status, 'YIELD');
+                                }else if (xTaskRunState === '-1') {
+                                    threadRunning = false;
+                                    mySetter(DisplayFields.Status, state);
+                                } else {
+                                    threadRunning = true;
+                                    mySetter(DisplayFields.Status, 'RUNNING(' + xTaskRunState + ')');
+                                }
+                            }
                             mySetter(DisplayFields.StackStart, RTOSCommon.hexFormat(stackInfo.stackStart));
                             mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
                             mySetter(
