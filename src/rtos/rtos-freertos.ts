@@ -80,6 +80,33 @@ FreeRTOSItems[DisplayFields[DisplayFields.Runtime]] = {
 };
 const DisplayFieldNames: string[] = Object.keys(FreeRTOSItems);
 
+enum QueueFields {
+    Address,
+    Name,
+    Type,
+    Size,
+    UsedSize,
+    ItemSize,
+    Head,
+    WriteTo,
+    TailMxHolder,
+    ReadFromRecCnt,
+    QNumber,
+};
+const queueColumns = [
+    { 'columnDataKey': QueueFields.Address, title: 'Address', },
+    { 'columnDataKey': QueueFields.Name, title: 'Name', },
+    { 'columnDataKey': QueueFields.Type, title: 'Type', },
+    { 'columnDataKey': QueueFields.Size, title: 'Size', },
+    { 'columnDataKey': QueueFields.UsedSize, title: 'Used', },
+    { 'columnDataKey': QueueFields.ItemSize, title: 'Item Size', },
+    { 'columnDataKey': QueueFields.Head, title: 'Head', },
+    { 'columnDataKey': QueueFields.WriteTo, title: 'Write To', },
+    { 'columnDataKey': QueueFields.TailMxHolder, title: 'Tail/MxHolder', },
+    { 'columnDataKey': QueueFields.ReadFromRecCnt, title: 'ReadFrom/RecCnt', },
+    { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
+];
+
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -95,6 +122,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
+    private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
 
     private stale = true;
     private curThreadAddr = 0;
@@ -103,6 +131,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private timeInfo = '';
     private readonly maxThreads = 1024;
     private helpHtml: string | undefined;
+    private queueInfo: any[] = [];
 
     // Need to do a TON of testing for stack growing the other direction
     private stackIncrements = -1;
@@ -158,6 +187,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     true
                 );
                 this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
+                this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
+
                 this.status = 'initialized';
             }
             return this;
@@ -263,6 +294,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             // uxCurrentNumberOfTasks can go invalid anytime. Like when a reset/restart happens
             this.uxCurrentNumberOfTasksVal = Number.MAX_SAFE_INTEGER;
             this.foundThreads = [];
+            this.queueInfo = [];
+
             this.uxCurrentNumberOfTasks?.getValue(frameId).then(
                 async (str) => {
                     try {
@@ -306,6 +339,15 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         } else {
                             this.finalThreads = [];
                         }
+                        if (this.xQueueRegistry) {
+                            const queueRegistry = await this.xQueueRegistry.getVarChildren(frameId);
+                            let promises = [];
+                            for (const q of queueRegistry || []) {
+                                promises.push(this.getQueueInfo(q.variablesReference, frameId));
+                            }
+                            await Promise.all(promises);
+                            promises = [];
+                        }
                         this.stale = false;
                         this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
                         resolve();
@@ -317,6 +359,119 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 (reason) => {
                     resolve();
                     console.error('FreeRTOS.refresh() failed: ', reason);
+                }
+            );
+        });
+    }
+
+    private getQueueInfo(
+        varRef: RTOSCommon.RTOSVarHelperMaybe | number,
+        frameId: number
+    ): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            if (!varRef || (typeof varRef !== 'number' && !varRef.varReference)) {
+                resolve();
+                return;
+            }
+            if (this.progStatus !== 'stopped') {
+                reject(new Error('Busy'));
+                return;
+            }
+            let promise;
+            if (typeof varRef !== 'number') {
+                promise = varRef.getVarChildrenObj(frameId);
+            } else {
+                promise = this.getVarChildrenObj(varRef, 'task-list');
+            }
+            promise.then(
+                async (obj: any) => {
+                    console.log('');
+
+                    const tmpQueueName = obj['pcQueueName']?.val;
+                    const match = tmpQueueName.match(/"([^*]*)"$/);
+                    const queueName = match ? match[1] : tmpQueueName;
+
+                    if (!queueName || queueName === '0x0') {
+                        // empty slot in the registry
+                        resolve();
+                        return;
+                    }
+
+                    const queueRecord: any = {};
+                    queueRecord[QueueFields.Name] = queueName;
+                    const queueAddress = parseInt(obj['xHandle']?.val);
+                    queueRecord[QueueFields.Address] = RTOSCommon.hexFormat(queueAddress);
+
+                    const queue = await this.getVarChildrenObj(obj['xHandle']?.ref, '') || {};
+                    const uUnion = await this.getVarChildrenObj(queue['u']?.ref, '') || {};
+
+                    const pcHead = parseInt(queue['pcHead']?.val);
+                    const pcWriteTo = parseInt(queue['pcWriteTo']?.val);
+                    let queueType: number;
+                    queueRecord[QueueFields.Size] = queue['uxLength']?.val;
+                    queueRecord[QueueFields.UsedSize] = queue['uxMessagesWaiting']?.val;
+                    queueRecord[QueueFields.ItemSize] = queue['uxItemSize']?.val;
+                    queueRecord[QueueFields.Head] = RTOSCommon.hexFormat(pcHead);
+                    queueRecord[QueueFields.WriteTo] = RTOSCommon.hexFormat(pcWriteTo);
+                    if (queue['uxQueueNumber']?.val) {
+                        queueRecord[QueueFields.QNumber] = queue['uxQueueNumber']?.val;
+                    } else {
+                        queueRecord[QueueFields.QNumber] = '???';
+                    }
+                    if (queue['ucQueueType']?.val) {
+                        // thanks to trace info we have detailed info about the queue type
+                        queueType = parseInt(queue['ucQueueType']?.val);
+                    } else if (queueAddress === pcHead) {
+                        queueType = -2; // unspecified kind of semaphore
+                    } else if (pcHead === 0) {
+                        queueType = -1; // unspecified kind of mutex
+                    } else {
+                        queueType = 0;
+                    }
+                    switch (queueType) {
+                        case -2:
+                            queueRecord[QueueFields.Type] = '?Semaphore';
+                            break;
+                        case -1:
+                            queueRecord[QueueFields.Type] = '?Mutex';
+                            break;
+                        case 0:
+                            queueRecord[QueueFields.Type] = 'Queue/Set';
+                            break;
+                        case 1:
+                            queueRecord[QueueFields.Type] = 'Mutex';
+                            break;
+                        case 2:
+                            queueRecord[QueueFields.Type] = 'CntSemaphore';
+                            break;
+                        case 3:
+                            queueRecord[QueueFields.Type] = 'BinSemaphore';
+                            break;
+                        case 4:
+                            queueRecord[QueueFields.Type] = 'RecMutex';
+                            break;
+                        default:
+                            queueRecord[QueueFields.Type] = `???${queueType}`;
+                            break;
+                    }
+                    
+                    if (pcHead === 0 || pcHead === queueAddress) {
+                        // mutex || semaphore
+                        const xSemaphore = await this.getVarChildrenObj(uUnion['xSemaphore']?.ref, '') || {};
+                        queueRecord[QueueFields.TailMxHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
+                        queueRecord[QueueFields.ReadFromRecCnt] = xSemaphore['uxRecursiveCallCount']?.val;
+                    } else {
+                        // queue
+                        const xQueue = await this.getVarChildrenObj(uUnion['xQueue']?.ref, '') || {};
+                        queueRecord[QueueFields.TailMxHolder] = RTOSCommon.hexFormat(parseInt(xQueue['pcTail']?.val));
+                        queueRecord[QueueFields.ReadFromRecCnt] = RTOSCommon.hexFormat(parseInt(xQueue['pcReadFrom']?.val));
+                    }
+
+                    this.queueInfo.push(queueRecord);
+                    resolve();
+                },
+                (e) => {
+                    reject(e);
                 }
             );
         });
@@ -521,9 +676,35 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             return htmlContent;
         }
 
-        const ret = this.getHTMLCommon(DisplayFieldNames, FreeRTOSItems, this.finalThreads, this.timeInfo);
-        htmlContent.html = msg + ret.html + (this.helpHtml || '');
-        htmlContent.css = ret.css;
+        const htmlThreads = this.getHTMLCommon(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
+        const htmlQueues = this.getHTMLDataGrid(queueColumns, this.queueInfo, [{ name: 'id', value: 'queues' }]);
+
+        const htmlRTOSPanels = this.getHTMLPanels(
+            [
+                {   title: `THREADS
+                    <vscode-badge appearance="secondary">
+                    ${this.finalThreads.length}
+                    </vscode-badge>`
+                },
+                {   title: `QUEUES
+                    <vscode-badge appearance="secondary">
+                    ${this.queueInfo.length}
+                    </vscode-badge>`
+                }
+            ],
+            [
+                { content: htmlThreads.html },
+                { content: htmlQueues },
+            ],
+            [   { name: 'id', value: 'rtos-panels' },
+                { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
+                { name: 'debug-session-id', value: this.session.id },
+            ],
+            true);
+             
+        htmlContent.html = `${msg}\n${htmlRTOSPanels}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
+        //htmlContent.html = `${msg}\n${htmlThreads.html}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
+        htmlContent.css = htmlThreads.css;
 
         this.lastValidHtmlContent = htmlContent;
         // console.log(this.lastValidHtmlContent.html);
