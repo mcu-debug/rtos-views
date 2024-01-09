@@ -89,11 +89,13 @@ enum QueueFields {
     ItemSize,
     Head,
     WriteTo,
-    TailMxHolder,
-    ReadFromRecCnt,
     QNumber,
+    Tail,
+    ReadFrom,
+    MutexHolder,
+    RecursiveCount,
 };
-const queueColumns = [
+const queueColumns = [ // used for queues and queue sets
     { 'columnDataKey': QueueFields.Address, title: 'Address', },
     { 'columnDataKey': QueueFields.Name, title: 'Name', },
     { 'columnDataKey': QueueFields.Type, title: 'Type', },
@@ -102,8 +104,18 @@ const queueColumns = [
     { 'columnDataKey': QueueFields.ItemSize, title: 'Item Size', },
     { 'columnDataKey': QueueFields.Head, title: 'Head', },
     { 'columnDataKey': QueueFields.WriteTo, title: 'Write To', },
-    { 'columnDataKey': QueueFields.TailMxHolder, title: 'Tail/MxHolder', },
-    { 'columnDataKey': QueueFields.ReadFromRecCnt, title: 'ReadFrom/RecCnt', },
+    { 'columnDataKey': QueueFields.Tail, title: 'Tail', },
+    { 'columnDataKey': QueueFields.ReadFrom, title: 'ReadFrom', },
+    { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
+];
+const semaphoreColumns = [ // used for semaphores and mutexes
+    { 'columnDataKey': QueueFields.Address, title: 'Address', },
+    { 'columnDataKey': QueueFields.Name, title: 'Name', },
+    { 'columnDataKey': QueueFields.Type, title: 'Type', },
+    { 'columnDataKey': QueueFields.Size, title: 'Size', },
+    { 'columnDataKey': QueueFields.UsedSize, title: 'Used', },
+    { 'columnDataKey': QueueFields.MutexHolder, title: 'Mutex Holder', },
+    { 'columnDataKey': QueueFields.RecursiveCount, title: 'Recursive Cnt', },
     { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
 ];
 
@@ -131,7 +143,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private timeInfo = '';
     private readonly maxThreads = 1024;
     private helpHtml: string | undefined;
-    private queueInfo: any[] = [];
+    private queueInfo: any[] = []; // queues and queue sets
+    private semaphoreInfo: any[] = []; // semaphores and mutexes
 
     // Need to do a TON of testing for stack growing the other direction
     private stackIncrements = -1;
@@ -295,6 +308,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             this.uxCurrentNumberOfTasksVal = Number.MAX_SAFE_INTEGER;
             this.foundThreads = [];
             this.queueInfo = [];
+            this.semaphoreInfo = [];
 
             this.uxCurrentNumberOfTasks?.getValue(frameId).then(
                 async (str) => {
@@ -454,20 +468,21 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                             queueRecord[QueueFields.Type] = `???${queueType}`;
                             break;
                     }
-                    
+
                     if (pcHead === 0 || pcHead === queueAddress) {
                         // mutex || semaphore
                         const xSemaphore = await this.getVarChildrenObj(uUnion['xSemaphore']?.ref, '') || {};
-                        queueRecord[QueueFields.TailMxHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
-                        queueRecord[QueueFields.ReadFromRecCnt] = xSemaphore['uxRecursiveCallCount']?.val;
+                        queueRecord[QueueFields.MutexHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
+                        queueRecord[QueueFields.RecursiveCount] = xSemaphore['uxRecursiveCallCount']?.val;
+                        this.semaphoreInfo.push(queueRecord);
                     } else {
                         // queue
                         const xQueue = await this.getVarChildrenObj(uUnion['xQueue']?.ref, '') || {};
-                        queueRecord[QueueFields.TailMxHolder] = RTOSCommon.hexFormat(parseInt(xQueue['pcTail']?.val));
-                        queueRecord[QueueFields.ReadFromRecCnt] = RTOSCommon.hexFormat(parseInt(xQueue['pcReadFrom']?.val));
+                        queueRecord[QueueFields.Tail] = RTOSCommon.hexFormat(parseInt(xQueue['pcTail']?.val));
+                        queueRecord[QueueFields.ReadFrom] = RTOSCommon.hexFormat(parseInt(xQueue['pcReadFrom']?.val));
+                        this.queueInfo.push(queueRecord);
                     }
 
-                    this.queueInfo.push(queueRecord);
                     resolve();
                 },
                 (e) => {
@@ -678,7 +693,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
         const htmlThreads = this.getHTMLCommon(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
         const htmlQueues = this.getHTMLDataGrid(queueColumns, this.queueInfo, [{ name: 'id', value: 'queues' }]);
-
+        const htmlSemaphores = this.getHTMLDataGrid(semaphoreColumns, this.semaphoreInfo, [{ name: 'id', value: 'semaphores' }]);
+        const htmlQueueJoined = 
+            '<vscode-grid><vscode-data-grid-row><vscode-data-grid-cell>' +
+            htmlQueues +
+            '</vscode-data-grid-cell></vscode-data-grid-row><vscode-data-grid-row><vscode-data-grid-cell>' +
+            htmlSemaphores +
+            '</vscode-data-grid-cell></vscode-data-grid-row></vscode-grid>';
         const htmlRTOSPanels = this.getHTMLPanels(
             [
                 {   title: `THREADS
@@ -688,13 +709,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 },
                 {   title: `QUEUES
                     <vscode-badge appearance="secondary">
-                    ${this.queueInfo.length}
+                    ${this.queueInfo.length + this.semaphoreInfo.length}
                     </vscode-badge>`
                 }
             ],
             [
                 { content: htmlThreads.html },
-                { content: htmlQueues },
+                { content: htmlQueueJoined  },
             ],
             [   { name: 'id', value: 'rtos-panels' },
                 { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
