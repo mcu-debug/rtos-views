@@ -94,6 +94,8 @@ enum QueueFields {
     ReadFrom,
     MutexHolder,
     RecursiveCount,
+    WaitReceiveCnt,
+    WaitSendCnt,
 };
 const queueColumns = [ // used for queues and queue sets
     { 'columnDataKey': QueueFields.Address, title: 'Address', },
@@ -106,6 +108,8 @@ const queueColumns = [ // used for queues and queue sets
     { 'columnDataKey': QueueFields.WriteTo, title: 'Write To', },
     { 'columnDataKey': QueueFields.Tail, title: 'Tail', },
     { 'columnDataKey': QueueFields.ReadFrom, title: 'ReadFrom', },
+    { 'columnDataKey': QueueFields.WaitReceiveCnt, title: 'Wait Rcv Cnt', },
+    { 'columnDataKey': QueueFields.WaitSendCnt, title: 'Wait Send Cnt', },
     { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
 ];
 const semaphoreColumns = [ // used for semaphores and mutexes
@@ -113,9 +117,10 @@ const semaphoreColumns = [ // used for semaphores and mutexes
     { 'columnDataKey': QueueFields.Name, title: 'Name', },
     { 'columnDataKey': QueueFields.Type, title: 'Type', },
     { 'columnDataKey': QueueFields.Size, title: 'Size', },
-    { 'columnDataKey': QueueFields.UsedSize, title: 'Used', },
+    { 'columnDataKey': QueueFields.UsedSize, title: 'Available', },
     { 'columnDataKey': QueueFields.MutexHolder, title: 'Mutex Holder', },
     { 'columnDataKey': QueueFields.RecursiveCount, title: 'Recursive Cnt', },
+    { 'columnDataKey': QueueFields.WaitReceiveCnt, title: 'Wait Cnt', },
     { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
 ];
 
@@ -418,7 +423,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
                     const queue = await this.getVarChildrenObj(obj['xHandle']?.ref, '') || {};
                     const uUnion = await this.getVarChildrenObj(queue['u']?.ref, '') || {};
-
+                    const xTasksWaitingToSend = await this.getVarChildrenObj(queue['xTasksWaitingToSend']?.ref, '') || {};
+                    const xTasksWaitingToReceive = await this.getVarChildrenObj(queue['xTasksWaitingToReceive']?.ref, '') || {};
                     const pcHead = parseInt(queue['pcHead']?.val);
                     const pcWriteTo = parseInt(queue['pcWriteTo']?.val);
                     let queueType: number;
@@ -427,6 +433,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     queueRecord[QueueFields.ItemSize] = queue['uxItemSize']?.val;
                     queueRecord[QueueFields.Head] = RTOSCommon.hexFormat(pcHead);
                     queueRecord[QueueFields.WriteTo] = RTOSCommon.hexFormat(pcWriteTo);
+                    queueRecord[QueueFields.WaitReceiveCnt] = xTasksWaitingToReceive['uxNumberOfItems']?.val;
+                    queueRecord[QueueFields.WaitSendCnt] = xTasksWaitingToSend['uxNumberOfItems']?.val;
                     if (queue['uxQueueNumber']?.val) {
                         queueRecord[QueueFields.QNumber] = queue['uxQueueNumber']?.val;
                     } else {
@@ -471,9 +479,14 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
                     if (pcHead === 0 || pcHead === queueAddress) {
                         // mutex || semaphore
-                        const xSemaphore = await this.getVarChildrenObj(uUnion['xSemaphore']?.ref, '') || {};
-                        queueRecord[QueueFields.MutexHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
-                        queueRecord[QueueFields.RecursiveCount] = xSemaphore['uxRecursiveCallCount']?.val;
+                        if (pcHead === 0) {
+                            const xSemaphore = await this.getVarChildrenObj(uUnion['xSemaphore']?.ref, '') || {};
+                            queueRecord[QueueFields.MutexHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
+                            queueRecord[QueueFields.RecursiveCount] = xSemaphore['uxRecursiveCallCount']?.val;
+                        } else {
+                            queueRecord[QueueFields.MutexHolder] = '---';
+                            queueRecord[QueueFields.RecursiveCount] = '---';
+                        }
                         this.semaphoreInfo.push(queueRecord);
                     } else {
                         // queue
@@ -694,12 +707,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         const htmlThreads = this.getHTMLCommon(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
         const htmlQueues = this.getHTMLDataGrid(queueColumns, this.queueInfo, [{ name: 'id', value: 'queues' }]);
         const htmlSemaphores = this.getHTMLDataGrid(semaphoreColumns, this.semaphoreInfo, [{ name: 'id', value: 'semaphores' }]);
-        const htmlQueueJoined = 
-            '<vscode-grid><vscode-data-grid-row><vscode-data-grid-cell>' +
-            htmlQueues +
-            '</vscode-data-grid-cell></vscode-data-grid-row><vscode-data-grid-row><vscode-data-grid-cell>' +
-            htmlSemaphores +
-            '</vscode-data-grid-cell></vscode-data-grid-row></vscode-grid>';
         const htmlRTOSPanels = this.getHTMLPanels(
             [
                 {   title: `THREADS
@@ -709,13 +716,19 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 },
                 {   title: `QUEUES
                     <vscode-badge appearance="secondary">
-                    ${this.queueInfo.length + this.semaphoreInfo.length}
+                    ${this.queueInfo.length}
                     </vscode-badge>`
-                }
+                },
+                {   title: `MUX/SEMS
+                    <vscode-badge appearance="secondary">
+                    ${this.semaphoreInfo.length}
+                    </vscode-badge>`
+                },
             ],
             [
                 { content: htmlThreads.html },
-                { content: htmlQueueJoined  },
+                { content: htmlQueues },
+                { content: htmlSemaphores },
             ],
             [   { name: 'id', value: 'rtos-panels' },
                 { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
