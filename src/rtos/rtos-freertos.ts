@@ -2,6 +2,7 @@
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
 import * as RTOSCommon from './rtos-common';
+import { ColTypeEnum } from './rtos-common';
 
 // We will have two rows of headers for FreeRTOS and the table below describes
 // the columns headers for the two rows and the width of each column as a fraction
@@ -97,32 +98,32 @@ enum QueueFields {
     WaitReceiveCnt,
     WaitSendCnt,
 };
-const queueColumns = [ // used for queues and queue sets
-    { 'columnDataKey': QueueFields.Address, title: 'Address', },
-    { 'columnDataKey': QueueFields.Name, title: 'Name', },
-    { 'columnDataKey': QueueFields.Type, title: 'Type', },
-    { 'columnDataKey': QueueFields.Size, title: 'Size', },
-    { 'columnDataKey': QueueFields.UsedSize, title: 'Used', },
-    { 'columnDataKey': QueueFields.ItemSize, title: 'Item Size', },
-    { 'columnDataKey': QueueFields.Head, title: 'Head', },
-    { 'columnDataKey': QueueFields.WriteTo, title: 'Write To', },
-    { 'columnDataKey': QueueFields.Tail, title: 'Tail', },
-    { 'columnDataKey': QueueFields.ReadFrom, title: 'ReadFrom', },
-    { 'columnDataKey': QueueFields.WaitReceiveCnt, title: 'Wait Rcv Cnt', },
-    { 'columnDataKey': QueueFields.WaitSendCnt, title: 'Wait Send Cnt', },
-    { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
-];
-const semaphoreColumns = [ // used for semaphores and mutexes
-    { 'columnDataKey': QueueFields.Address, title: 'Address', },
-    { 'columnDataKey': QueueFields.Name, title: 'Name', },
-    { 'columnDataKey': QueueFields.Type, title: 'Type', },
-    { 'columnDataKey': QueueFields.Size, title: 'Size', },
-    { 'columnDataKey': QueueFields.UsedSize, title: 'Available', },
-    { 'columnDataKey': QueueFields.MutexHolder, title: 'Mutex Holder', },
-    { 'columnDataKey': QueueFields.RecursiveCount, title: 'Recursive Cnt', },
-    { 'columnDataKey': QueueFields.WaitReceiveCnt, title: 'Wait Cnt', },
-    { 'columnDataKey': QueueFields.QNumber, title: 'Q#', },
-];
+
+const FreeRTOSQueues: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
+FreeRTOSQueues[QueueFields[QueueFields.QNumber]] = { colType: ColTypeEnum.colTypeNormal, width: 1, headerRow1: '', headerRow2: '#' };
+FreeRTOSQueues[QueueFields[QueueFields.Address]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Queue', headerRow2: 'Address' };
+FreeRTOSQueues[QueueFields[QueueFields.Name]] = { colType: ColTypeEnum.colTypeNormal, width: 4, headerRow1: '', headerRow2: 'Name' };
+FreeRTOSQueues[QueueFields[QueueFields.Type]] = { colType: ColTypeEnum.colTypeNormal, width: 2.5, headerRow1: '', headerRow2: 'Type' };
+FreeRTOSQueues[QueueFields[QueueFields.Head]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Head', headerRow2: 'Address' };
+FreeRTOSQueues[QueueFields[QueueFields.Tail]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Tail', headerRow2: 'Address' };
+FreeRTOSQueues[QueueFields[QueueFields.WriteTo]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Write To', headerRow2: 'Address' };
+FreeRTOSQueues[QueueFields[QueueFields.ReadFrom]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Read From', headerRow2: 'Address' };
+FreeRTOSQueues[QueueFields[QueueFields.Size]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Queue', headerRow2: 'Size' };
+FreeRTOSQueues[QueueFields[QueueFields.UsedSize]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Used', headerRow2: 'Size' };
+FreeRTOSQueues[QueueFields[QueueFields.ItemSize]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Item', headerRow2: 'Size' };
+FreeRTOSQueues[QueueFields[QueueFields.WaitReceiveCnt]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Wait', headerRow2: 'Rcvrs' };
+FreeRTOSQueues[QueueFields[QueueFields.WaitSendCnt]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Wait', headerRow2: 'Sndrs' };
+
+const FreeRTOSSemaphores: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
+FreeRTOSSemaphores[QueueFields[QueueFields.QNumber]] = { colType: ColTypeEnum.colTypeNormal, width: 1, headerRow1: '', headerRow2: '#' };
+FreeRTOSSemaphores[QueueFields[QueueFields.Address]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Object', headerRow2: 'Address' };
+FreeRTOSSemaphores[QueueFields[QueueFields.Name]] = { colType: ColTypeEnum.colTypeNormal, width: 4, headerRow1: '', headerRow2: 'Name' };
+FreeRTOSSemaphores[QueueFields[QueueFields.Type]] = { colType: ColTypeEnum.colTypeNormal, width: 2.5, headerRow1: '', headerRow2: 'Type' };
+FreeRTOSSemaphores[QueueFields[QueueFields.MutexHolder]] = { colType: ColTypeEnum.colTypeNormal, width: 3, headerRow1: 'Mutex', headerRow2: 'Holder' };
+FreeRTOSSemaphores[QueueFields[QueueFields.Size]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: '', headerRow2: 'Size' };
+FreeRTOSSemaphores[QueueFields[QueueFields.UsedSize]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: '', headerRow2: 'Available' };
+FreeRTOSSemaphores[QueueFields[QueueFields.RecursiveCount]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: 'Rcrsive', headerRow2: 'Cnt' };
+FreeRTOSSemaphores[QueueFields[QueueFields.WaitReceiveCnt]] = { colType: ColTypeEnum.colTypeNumeric, width: 2, headerRow1: '', headerRow2: 'Waits' };
 
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
@@ -148,8 +149,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private timeInfo = '';
     private readonly maxThreads = 1024;
     private helpHtml: string | undefined;
-    private queueInfo: any[] = []; // queues and queue sets
-    private semaphoreInfo: any[] = []; // semaphores and mutexes
+    private queueInfo: RTOSCommon.RTOSDisplayInfo[] = []; // queues and queue sets
+    private semaphoreInfo: RTOSCommon.RTOSDisplayInfo[] = []; // semaphores and mutexes
 
     // Need to do a TON of testing for stack growing the other direction
     private stackIncrements = -1;
@@ -416,10 +417,16 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         return;
                     }
 
-                    const queueRecord: any = {};
-                    queueRecord[QueueFields.Name] = queueName;
+                    const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
+                    const queueRecord: RTOSCommon.RTOSDisplayInfo = {
+                        display: display,
+                    };
+                    const mySetter = (x: QueueFields, text: string, value?: any) => {
+                        display[QueueFields[x]] = { text, value };
+                    };
+                    mySetter(QueueFields.Name, queueName);
                     const queueAddress = parseInt(obj['xHandle']?.val);
-                    queueRecord[QueueFields.Address] = RTOSCommon.hexFormat(queueAddress);
+                    mySetter(QueueFields.Address, RTOSCommon.hexFormat(queueAddress));
 
                     const queue = await this.getVarChildrenObj(obj['xHandle']?.ref, '') || {};
                     const uUnion = await this.getVarChildrenObj(queue['u']?.ref, '') || {};
@@ -428,17 +435,17 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     const pcHead = parseInt(queue['pcHead']?.val);
                     const pcWriteTo = parseInt(queue['pcWriteTo']?.val);
                     let queueType: number;
-                    queueRecord[QueueFields.Size] = queue['uxLength']?.val;
-                    queueRecord[QueueFields.UsedSize] = queue['uxMessagesWaiting']?.val;
-                    queueRecord[QueueFields.ItemSize] = queue['uxItemSize']?.val;
-                    queueRecord[QueueFields.Head] = RTOSCommon.hexFormat(pcHead);
-                    queueRecord[QueueFields.WriteTo] = RTOSCommon.hexFormat(pcWriteTo);
-                    queueRecord[QueueFields.WaitReceiveCnt] = xTasksWaitingToReceive['uxNumberOfItems']?.val;
-                    queueRecord[QueueFields.WaitSendCnt] = xTasksWaitingToSend['uxNumberOfItems']?.val;
+                    mySetter(QueueFields.Size, queue['uxLength']?.val);
+                    mySetter(QueueFields.UsedSize, queue['uxMessagesWaiting']?.val);
+                    mySetter(QueueFields.ItemSize, queue['uxItemSize']?.val);
+                    mySetter(QueueFields.Head, RTOSCommon.hexFormat(pcHead));
+                    mySetter(QueueFields.WriteTo, RTOSCommon.hexFormat(pcWriteTo));
+                    mySetter(QueueFields.WaitReceiveCnt, xTasksWaitingToReceive['uxNumberOfItems']?.val);
+                    mySetter(QueueFields.WaitSendCnt, xTasksWaitingToSend['uxNumberOfItems']?.val);
                     if (queue['uxQueueNumber']?.val) {
-                        queueRecord[QueueFields.QNumber] = queue['uxQueueNumber']?.val;
+                        mySetter(QueueFields.QNumber, queue['uxQueueNumber']?.val);
                     } else {
-                        queueRecord[QueueFields.QNumber] = '???';
+                        mySetter(QueueFields.QNumber, '???');
                     }
                     if (queue['ucQueueType']?.val) {
                         // thanks to trace info we have detailed info about the queue type
@@ -452,28 +459,28 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     }
                     switch (queueType) {
                         case -2:
-                            queueRecord[QueueFields.Type] = '?Semaphore';
+                            mySetter(QueueFields.Type, '?Semaphore');
                             break;
                         case -1:
-                            queueRecord[QueueFields.Type] = '?Mutex';
+                            mySetter(QueueFields.Type, '?Mutex');
                             break;
                         case 0:
-                            queueRecord[QueueFields.Type] = 'Queue/Set';
+                            mySetter(QueueFields.Type, 'Queue/Set');
                             break;
                         case 1:
-                            queueRecord[QueueFields.Type] = 'Mutex';
+                            mySetter(QueueFields.Type, 'Mutex');
                             break;
                         case 2:
-                            queueRecord[QueueFields.Type] = 'CntSemaphore';
+                            mySetter(QueueFields.Type, 'CntSemaphore');
                             break;
                         case 3:
-                            queueRecord[QueueFields.Type] = 'BinSemaphore';
+                            mySetter(QueueFields.Type, 'BinSemaphore');
                             break;
                         case 4:
-                            queueRecord[QueueFields.Type] = 'RecMutex';
+                            mySetter(QueueFields.Type, 'RecMutex');
                             break;
                         default:
-                            queueRecord[QueueFields.Type] = `???${queueType}`;
+                            mySetter(QueueFields.Type, `???${queueType}`);
                             break;
                     }
 
@@ -481,18 +488,18 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         // mutex || semaphore
                         if (pcHead === 0) {
                             const xSemaphore = await this.getVarChildrenObj(uUnion['xSemaphore']?.ref, '') || {};
-                            queueRecord[QueueFields.MutexHolder] = RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val));
-                            queueRecord[QueueFields.RecursiveCount] = xSemaphore['uxRecursiveCallCount']?.val;
+                            mySetter(QueueFields.MutexHolder, RTOSCommon.hexFormat(parseInt(xSemaphore['xMutexHolder']?.val)));
+                            mySetter(QueueFields.RecursiveCount, xSemaphore['uxRecursiveCallCount']?.val);
                         } else {
-                            queueRecord[QueueFields.MutexHolder] = '---';
-                            queueRecord[QueueFields.RecursiveCount] = '---';
+                            mySetter(QueueFields.MutexHolder, '---');
+                            mySetter(QueueFields.RecursiveCount, '---');
                         }
                         this.semaphoreInfo.push(queueRecord);
                     } else {
                         // queue
                         const xQueue = await this.getVarChildrenObj(uUnion['xQueue']?.ref, '') || {};
-                        queueRecord[QueueFields.Tail] = RTOSCommon.hexFormat(parseInt(xQueue['pcTail']?.val));
-                        queueRecord[QueueFields.ReadFrom] = RTOSCommon.hexFormat(parseInt(xQueue['pcReadFrom']?.val));
+                        mySetter(QueueFields.Tail, RTOSCommon.hexFormat(parseInt(xQueue['pcTail']?.val)));
+                        mySetter(QueueFields.ReadFrom, RTOSCommon.hexFormat(parseInt(xQueue['pcReadFrom']?.val)));
                         this.queueInfo.push(queueRecord);
                     }
 
@@ -704,9 +711,9 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             return htmlContent;
         }
 
-        const htmlThreads = this.getHTMLCommon(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
-        const htmlQueues = this.getHTMLDataGrid(queueColumns, this.queueInfo, [{ name: 'id', value: 'queues' }]);
-        const htmlSemaphores = this.getHTMLDataGrid(semaphoreColumns, this.semaphoreInfo, [{ name: 'id', value: 'semaphores' }]);
+        const htmlThreads = this.getHTMLThreads(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
+        const htmlQueues = this.getHTMLTable(Object.keys(FreeRTOSQueues), FreeRTOSQueues, this.queueInfo, (_) => '');
+        const htmlSemaphores = this.getHTMLTable(Object.keys(FreeRTOSSemaphores), FreeRTOSSemaphores, this.semaphoreInfo, (_) => '');
         const htmlRTOSPanels = this.getHTMLPanels(
             [
                 {   title: `THREADS
@@ -727,8 +734,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             ],
             [
                 { content: htmlThreads.html },
-                { content: htmlQueues },
-                { content: htmlSemaphores },
+                { content: htmlQueues.html },
+                { content: htmlSemaphores.html },
             ],
             [   { name: 'id', value: 'rtos-panels' },
                 { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
@@ -737,11 +744,9 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             true);
              
         htmlContent.html = `${msg}\n${htmlRTOSPanels}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
-        //htmlContent.html = `${msg}\n${htmlThreads.html}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
         htmlContent.css = htmlThreads.css;
 
         this.lastValidHtmlContent = htmlContent;
-        // console.log(this.lastValidHtmlContent.html);
         return this.lastValidHtmlContent;
     }
 }
