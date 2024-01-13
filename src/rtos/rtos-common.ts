@@ -529,7 +529,7 @@ export abstract class RTOSBase {
                             length += val.length;
                         }
                     }
-                    if (length > 1) {
+                    if (length >= 1) {
                         const descriptions = Object.keys(v.value)
                             .map((key) => `${key}: ${v.value[key].join(', ')}`)
                             .join('<br>');
