@@ -53,8 +53,10 @@ export interface DisplayRowItem {
     value?: any;
 }
 
-export interface RTOSThreadInfo {
+export interface RTOSDisplayInfo {
     display: { [key: string]: DisplayRowItem }; // Each key is the string of the enum value
+}
+export interface RTOSThreadInfo extends RTOSDisplayInfo {
     stackInfo: RTOSStackInfo;
     running?: boolean;
 }
@@ -411,12 +413,12 @@ export abstract class RTOSBase {
         return html;
     }
 
-    protected getHTMLCommon(
+    protected getHTMLTable<T extends RTOSDisplayInfo>(
         displayFieldNames: string[],
         // eslint-disable-next-line @typescript-eslint/naming-convention
         RTOSDisplayColumn: { [key: string]: DisplayColumnItem },
-        allThreads: RTOSThreadInfo[],
-        timeInfo: string
+        allRowData: T[],
+        fnCreateAdditionalClass: (info: T) => string
     ): HtmlInfo {
         const getAlignClasses = (key: string) => {
             const colType: ColTypeEnum = RTOSDisplayColumn[key].colType || ColTypeEnum.colTypeNormal;
@@ -458,8 +460,8 @@ export abstract class RTOSBase {
         let header = '';
         let style = '';
         let row = 1;
-        for (const thr of allThreads) {
-            const th = thr.display;
+        for (const rowData of allRowData) {
+            const th = rowData.display;
             if (!header) {
                 let col = 1;
                 let have2ndRow = false;
@@ -494,14 +496,14 @@ export abstract class RTOSBase {
 
             let col = 1;
             // prettier-ignore
-            const running = (thr.running === true) ? ' running' : '';
+            const createdAddClass = fnCreateAdditionalClass(rowData);
             const rowClass = `thread-row-${row}`;
             table += `  <vscode-data-grid-row class="${this.className}-row threads-row ${rowClass}">\n`;
             for (const key of displayFieldNames) {
                 const v = th[key];
                 let txt = padText(key, v.text);
                 const lKey = key.toLowerCase();
-                let additionalClasses = running + getAlignClasses(key);
+                let additionalClasses = createdAddClass + getAlignClasses(key);
                 const colType = RTOSDisplayColumn[key].colType || ColTypeEnum.colTypeNormal;
                 if (colType & ColTypeEnum.colTypePercentage) {
                     if (v.value !== undefined) {
@@ -527,7 +529,7 @@ export abstract class RTOSBase {
                             length += val.length;
                         }
                     }
-                    if (length > 1) {
+                    if (length >= 1) {
                         const descriptions = Object.keys(v.value)
                             .map((key) => `${key}: ${v.value[key].join(', ')}`)
                             .join('<br>');
@@ -545,13 +547,29 @@ export abstract class RTOSBase {
 
         table += '</vscode-data-grid>\n';
 
-        let ret = table;
+        const htmlContent: HtmlInfo = { html: table, css: style };
+        return htmlContent;
+    }
+
+    protected getHTMLThreads(
+        displayFieldNames: string[],
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        RTOSDisplayColumn: { [key: string]: DisplayColumnItem },
+        allThreads: RTOSThreadInfo[],
+        timeInfo: string
+    ): HtmlInfo {
+        const additionalClassCreator = (info: RTOSThreadInfo) => (info.running === true) ? ' running' : '';
+        const htmlTable = this.getHTMLTable(
+            displayFieldNames,
+            RTOSDisplayColumn,
+            allThreads,
+            additionalClassCreator);
+        let html = htmlTable.html;
         if (timeInfo) {
-            ret += `<p>Data collected at ${timeInfo}</p>\n`;
+            html += `<p>Data collected at ${timeInfo}</p>\n`;
         }
 
-        const htmlContent: HtmlInfo = { html: ret, css: style };
-
+        const htmlContent: HtmlInfo = { html: html, css: htmlTable.css };
         return htmlContent;
     }
 }

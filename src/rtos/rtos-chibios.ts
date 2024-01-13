@@ -965,7 +965,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
 
         this.createHmlHelp();
 
-        const htmlThreads = this.getHTMLCommon(threadDisplayFieldNames, threadTableItems, this.finalThreads, '');
+        const htmlThreads = this.getHTMLThreads(threadDisplayFieldNames, threadTableItems, this.finalThreads, '');
 
         const htmlGlobalInfo = this.getHTMLDataGrid(globalInfoCols,
                                                     this.globalInfo,

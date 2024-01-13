@@ -582,7 +582,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
             return htmlContent;
         }
 
-        const ret = this.getHTMLCommon(DisplayFieldNames, RTOSEMBOSItems, this.finalThreads, this.timeInfo);
+        const ret = this.getHTMLThreads(DisplayFieldNames, RTOSEMBOSItems, this.finalThreads, this.timeInfo);
         htmlContent.html = msg + ret.html + (this.helpHtml || '');
         htmlContent.css = ret.css;
 
