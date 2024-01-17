@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as RTOSCommon from './rtos-common';
 import { RTOSFreeRTOS } from './rtos-freertos';
+import { RTOSSafeRTOS } from './rtos-safertos';
 import { RTOSUCOS2 } from './rtos-ucosii';
 import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
@@ -39,6 +40,8 @@ const RTOS_TYPES = {
     ChibiOS: RTOSChibiOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Zephyr: RTOSZEPHYR,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    SafeRTOS: RTOSSafeRTOS,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -387,7 +390,7 @@ export class RTOSTracker implements DebugEventHandler {
             }
             try {
                 await this.update();
-            } catch { }
+            } catch {}
         }
     }
 
@@ -467,7 +470,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'rtos-views.rtos';
     private webviewView: vscode.WebviewView | undefined;
 
-    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) { }
+    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) {}
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -480,7 +483,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             // Allow scripts in the webview
             enableScripts: true,
-            localResourceRoots: [this.extensionUri]
+            localResourceRoots: [this.extensionUri],
         };
         this.webviewView.description = 'View RTOS internals';
 
