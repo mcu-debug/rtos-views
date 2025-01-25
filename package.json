@@ -128,7 +128,7 @@
         "@vscode/debugprotocol": "^1.59.0",
         "@vscode/vsce": "^2.18.0",
         "@vscode/webview-ui-toolkit": "^1.1.0",
-        "debug-tracker-vscode": "^0.0.14"
+        "debug-tracker-vscode": "^0.0.15"
     },
     "extensionDependencies": [
         "mcu-debug.debug-tracker-vscode"
