@@ -64,6 +64,12 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Determining stack peaks requires that stack memory be read to determine a high water mark. Stack peaks are useful but can be expensive in runtime."
+                },
+                "mcu-debug.rtos-views.trackDebuggers": {
+                    "type": "array",
+                    "items": "string",
+                    "default": [],
+                    "description": "List (array) of additional debuggers to track besides the default ones. Reload of window required"
                 }
             }
         },
