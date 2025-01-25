@@ -605,7 +605,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
             return htmlContent;
         }
 
-        const ret = this.getHTMLCommon(DisplayFieldNames, RTOSUCOS2Items, this.finalThreads, this.timeInfo);
+        const ret = this.getHTMLThreads(DisplayFieldNames, RTOSUCOS2Items, this.finalThreads, this.timeInfo);
         htmlContent.html = msg + ret.html + (this.helpHtml || '');
         htmlContent.css = ret.css;
 
