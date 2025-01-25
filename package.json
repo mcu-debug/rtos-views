@@ -2,7 +2,7 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "publisher": "mcu-debug",
     "preview": true,
     "repository": {
@@ -114,7 +114,7 @@
         "@typescript-eslint/eslint-plugin": "^5.38.1",
         "@typescript-eslint/parser": "^5.38.1",
         "@vscode/test-electron": "^2.1.5",
-        "esbuild": "^0.14.53",
+        "esbuild": "^0.14.54",
         "eslint": "^8.24.0",
         "eslint-config-prettier": "^8.5.0",
         "glob": "^8.0.3",
