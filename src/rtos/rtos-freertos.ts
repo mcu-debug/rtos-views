@@ -95,6 +95,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xSuspendedTaskList: RTOSCommon.RTOSVarHelperMaybe;
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
+    private ulTotalRunTimeArray: RTOSCommon.RTOSVarHelperMaybe[] = [];
+    private ulTotalRunTimeArraySize: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
 
     private stale = true;
@@ -164,7 +166,30 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     'xTasksWaitingTermination',
                     true
                 );
-                this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
+                this.ulTotalRunTimeArraySize = await this.getVarIfEmpty(
+                    this.ulTotalRunTimeArraySize,
+                    useFrameId,
+                    'sizeof(ulTotalRunTime) / sizeof(ulTotalRunTime[0])',
+                    true
+                );
+                const nCores = parseInt((await this.ulTotalRunTimeArraySize?.getValue(useFrameId)) || '');
+                if (nCores) {
+                    for (let i = 0; i < nCores; i++) {
+                        this.ulTotalRunTimeArray[i] = await this.getVarIfEmpty(
+                            this.ulTotalRunTimeArray[i],
+                            useFrameId,
+                            `ulTotalRunTime[${i}]`,
+                            true
+                        );
+                    }
+                } else {
+                    this.ulTotalRunTime = await this.getVarIfEmpty(
+                        this.ulTotalRunTime,
+                        useFrameId,
+                        'ulTotalRunTime',
+                        true
+                    );
+                }
                 this.status = 'initialized';
             }
             return this;
@@ -199,7 +224,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     ${strong('configMAX_TASK_NAME_LEN')} to something greater than 1 in FW<br>`;
                 }
 
-                if (!this.ulTotalRunTime) {
+                if (!this.ulTotalRunTime && !this.ulTotalRunTimeArray.length) {
                     ret += /*html*/ `<br>Missing Runtime stats..:<br>
                     /* To get runtime stats, modify the following macro in FreeRTOSConfig.h */<br>
                     #define ${strong('configGENERATE_RUN_TIME_STATS')}             1 /* 1: generate runtime statistics; 0: no runtime statistics */<br>
@@ -245,19 +270,37 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
     private updateTotalRuntime(frameId: number): Promise<void> {
         return new Promise<void>((resolve, reject) => {
-            if (!this.ulTotalRunTime) {
-                resolve();
-                return;
-            }
-            this.ulTotalRunTime.getValue(frameId).then(
-                (ret) => {
-                    this.ulTotalRunTimeVal = parseInt(ret || '');
-                    resolve();
-                },
-                (e) => {
-                    reject(e);
+            if (this.ulTotalRunTimeArray.length) {
+                const promises = [];
+                for (const rtVar of this.ulTotalRunTimeArray) {
+                    promises.push(rtVar?.getValue(frameId));
                 }
-            );
+                Promise.all(promises).then(
+                    (rtStrs) => {
+                        let total = 0;
+                        for (const rtStr of rtStrs) {
+                            total += parseInt(rtStr || '');
+                        }
+                        this.ulTotalRunTimeVal = total;
+                        resolve();
+                    },
+                    (e) => {
+                        reject(e);
+                    }
+                );
+            } else if (this.ulTotalRunTime) {
+                this.ulTotalRunTime.getValue(frameId).then(
+                    (ret) => {
+                        this.ulTotalRunTimeVal = parseInt(ret || '');
+                        resolve();
+                    },
+                    (e) => {
+                        reject(e);
+                    }
+                );
+            } else {
+                resolve();
+            }
         });
     }
 
