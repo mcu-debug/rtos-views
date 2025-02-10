@@ -281,7 +281,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     ${strong('configMAX_TASK_NAME_LEN')} to something greater than 1 in FW<br>`;
                 }
 
-                if (!this.ulTotalRunTime) {
+                if (!this.ulTotalRunTime && !this.ulTotalRunTimeArray.length) {
                     ret += /*html*/ `<br>Missing Runtime stats..:<br>
                     /* To get runtime stats, modify the following macro in FreeRTOSConfig.h */<br>
                     #define ${strong('configGENERATE_RUN_TIME_STATS')}             1 /* 1: generate runtime statistics; 0: no runtime statistics */<br>
