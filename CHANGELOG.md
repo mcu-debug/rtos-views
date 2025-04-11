@@ -1,8 +1,9 @@
 # Change Log
 
-## 0.0.9-pre1 - Jan 25, 2025
+## 0.0.10-pre1 - Apr 12, 2025
 
 -   PR#44: Add support for SMP on FreeRTOS
+-   PR#54: Add to list of tracked debuggers. cortex-debug, cppdbg and cspy are already in the list of tracked debuggers. This adds to that list via the setting `rtos-views.trackDebuggers`
 
 ## 0.0.8 - Sep 7, 2023
 
