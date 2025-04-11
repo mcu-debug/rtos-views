@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.9-pre1 - Jan 25, 2025
+
+-   PR#44: Add support for SMP on FreeRTOS
+
 ## 0.0.8 - Sep 7, 2023
 
 -   Updated to newest debug protocol APIs. No real changes
