@@ -156,11 +156,8 @@ interface DebugEventHandler {
 
 class MyDebugTracker {
     constructor(public context: vscode.ExtensionContext, protected handler: DebugEventHandler) {
-        context.subscriptions
-            .push
-            // vscode.workspace.onDidChangeConfiguration(this.settingsChanged.bind(this))
-            ();
-        // this.updateTrackedDebuggersFromSettings();
+        context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(this.settingsChanged.bind(this)));
+        this.updateTrackedDebuggersFromSettings(false);
         this.subscribeToTracker();
     }
 
@@ -200,6 +197,31 @@ class MyDebugTracker {
                 }
             });
         });
+    }
+
+    private settingsChanged(e: vscode.ConfigurationChangeEvent) {
+        if (e.affectsConfiguration('mcu-debug.rtos-views.trackDebuggers')) {
+            this.updateTrackedDebuggersFromSettings(true);
+        }
+    }
+
+    private updateTrackedDebuggersFromSettings(prompt: boolean) {
+        const config = vscode.workspace.getConfiguration('mcu-debug.rtos-views', null);
+        const prop = config.get('trackDebuggers', []);
+        if (prop && Array.isArray(prop)) {
+            for (let ix = 0; ix < prop.length; ix++) {
+                if (!TrackedDebuggers.includes(prop[ix])) {
+                    TrackedDebuggers.push(prop[ix]);
+                    // TODO: add debugger to the subscription dynamically. For now, we just notify user
+                    if (prompt) {
+                        vscode.window.showInformationMessage(
+                            'Settings changed for tracked debuggers. You have to Reload this window for this to take effect'
+                        );
+                        prompt = false;
+                    }
+                }
+            }
+        }
     }
 
     static allSessions: { [sessionId: string]: vscode.DebugSession } = {};
