@@ -142,6 +142,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xPendingReadyList: RTOSCommon.RTOSVarHelperMaybe;
     private pxCurrentTCB: RTOSCommon.RTOSVarHelperMaybe;
     private pxCurrentTCBs: RTOSCommon.RTOSVarHelperMaybe;
+    private pxCurrentTCBsNum = 0;
     private xSuspendedTaskList: RTOSCommon.RTOSVarHelperMaybe;
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
@@ -150,6 +151,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
 
     private stale = true;
     private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
+    private curThreadInfos: number[] = []; //address (from pxCurrentTCBs) of status of all threads (when multicore)
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private timeInfo = '';
@@ -309,6 +311,40 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
+    // pxCurrentTCBs store the currently running thread. use it determine thread status
+    private updateThreadAddrInCurrentTCBs(frameId: number): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            if (this.pxCurrentTCBs !== null) {
+                this.pxCurrentTCBs?.getValue(frameId).then(
+                    (ret) => {
+                        if (ret !== undefined) {
+                            const match = ret.match(/\d+/);
+                            this.pxCurrentTCBsNum = match ? parseInt(match[0]) : 0;
+                        } else {
+                            this.pxCurrentTCBsNum = 0;
+                        }
+                        for (let i = 0; i < this.pxCurrentTCBsNum; i++) {
+                            this.getExprVal('pxCurrentTCBs[' + i + ']', frameId).then(
+                                (ret) => {
+                                    this.curThreadInfos[i] = parseInt(ret || '');
+                                },
+                                (e) => {
+                                    reject(e);
+                                }
+                            );
+                        }
+                        resolve();
+                    },
+                    (e) => {
+                        reject(e);
+                    }
+                );
+            } else {
+                resolve();
+            }
+        });
+    }
+
     private updateTotalRuntime(frameId: number): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             if (!this.ulTotalRunTime) {
@@ -354,6 +390,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 promises.push(this.getThreadInfo(v.variablesReference, 'READY', frameId));
                             }
                             promises.push(this.updateCurrentThreadAddr(frameId));
+                            promises.push(this.updateThreadAddrInCurrentTCBs(frameId));
                             promises.push(this.updateTotalRuntime(frameId));
                             // Update in bulk, but broken up into three chunks, if the number of threads are already fulfilled, then
                             // not much happens
@@ -618,15 +655,36 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 mySetter(DisplayFields.Status, threadRunning ? 'RUNNING' : state);
                             } else {
                                 const xTaskRunState = thInfo['xTaskRunState']?.val;
-                                if (xTaskRunState === '-2') {
-                                    threadRunning = false;
-                                    mySetter(DisplayFields.Status, 'YIELD');
-                                }else if (xTaskRunState === '-1') {
-                                    threadRunning = false;
-                                    mySetter(DisplayFields.Status, state);
+                                if (xTaskRunState !== undefined) {
+                                    // some freertos not use it,then it is undefined
+                                    if (xTaskRunState === '-2') {
+                                        threadRunning = false;
+                                        mySetter(DisplayFields.Status, 'YIELD');
+                                    } else if (xTaskRunState === '-1') {
+                                        threadRunning = false;
+                                        mySetter(DisplayFields.Status, state);
+                                    } else {
+                                        threadRunning = true;
+                                        mySetter(DisplayFields.Status, 'RUNNING(' + xTaskRunState + ')');
+                                    }
                                 } else {
-                                    threadRunning = true;
-                                    mySetter(DisplayFields.Status, 'RUNNING(' + xTaskRunState + ')');
+                                    if (this.pxCurrentTCBs !== null) {
+                                        threadRunning = false;
+                                        for (const num in this.curThreadInfos) {
+                                            if (this.curThreadInfos[num] === threadId) {
+                                                threadRunning = true;
+                                                mySetter(DisplayFields.Status, 'RUNNING(' + num + ')');
+                                                break;
+                                            }
+                                        }
+                                        if (!threadRunning) {
+                                            mySetter(DisplayFields.Status, state);
+                                        }
+                                    } else {
+                                        // no pxCurrentTCB, no pxCurrentTCBs, no xTaskRunState
+                                        threadRunning = false;
+                                        mySetter(DisplayFields.Status, 'UNKNOWN');
+                                    }
                                 }
                             }
                             mySetter(DisplayFields.StackStart, RTOSCommon.hexFormat(stackInfo.stackStart));
