@@ -345,22 +345,21 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    private updateTotalRuntime(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (!this.ulTotalRunTime) {
-                resolve();
-                return;
+    private async updateTotalRuntime(frameId: number): Promise<void> {
+        if (!this.ulTotalRunTime) {
+            return;
+        }
+        try {
+            let total = 0;
+            const children = await this.ulTotalRunTime.getVarChildren(frameId);
+            for (const child of children) {
+                total += parseInt(child.value || '');
             }
-            this.ulTotalRunTime.getValue(frameId).then(
-                (ret) => {
-                    this.ulTotalRunTimeVal = parseInt(ret || '');
-                    resolve();
-                },
-                (e) => {
-                    reject(e);
-                }
-            );
-        });
+            this.ulTotalRunTimeVal = total;
+        } catch (e) {
+            const ret = await this.ulTotalRunTime.getValue(frameId);
+            this.ulTotalRunTimeVal = parseInt(ret || '');
+        }
     }
 
     public refresh(frameId: number): Promise<void> {
