@@ -146,8 +146,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xSuspendedTaskList: RTOSCommon.RTOSVarHelperMaybe;
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
-    private ulTotalRunTimeArray: RTOSCommon.RTOSVarHelperMaybe[] = [];
-    private ulTotalRunTimeArraySize: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
     private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
 
@@ -221,30 +219,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     'xTasksWaitingTermination',
                     true
                 );
-                this.ulTotalRunTimeArraySize = await this.getVarIfEmpty(
-                    this.ulTotalRunTimeArraySize,
-                    useFrameId,
-                    'sizeof(ulTotalRunTime) / sizeof(ulTotalRunTime[0])',
-                    true
-                );
-                const nCores = parseInt((await this.ulTotalRunTimeArraySize?.getValue(useFrameId)) || '');
-                if (nCores) {
-                    for (let i = 0; i < nCores; i++) {
-                        this.ulTotalRunTimeArray[i] = await this.getVarIfEmpty(
-                            this.ulTotalRunTimeArray[i],
-                            useFrameId,
-                            `ulTotalRunTime[${i}]`,
-                            true
-                        );
-                    }
-                } else {
-                    this.ulTotalRunTime = await this.getVarIfEmpty(
-                        this.ulTotalRunTime,
-                        useFrameId,
-                        'ulTotalRunTime',
-                        true
-                    );
-                }
+                this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
                 this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
 
                 this.status = 'initialized';
@@ -281,7 +256,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     ${strong('configMAX_TASK_NAME_LEN')} to something greater than 1 in FW<br>`;
                 }
 
-                if (!this.ulTotalRunTime && !this.ulTotalRunTimeArray.length) {
+                if (!this.ulTotalRunTime) {
                     ret += /*html*/ `<br>Missing Runtime stats..:<br>
                     /* To get runtime stats, modify the following macro in FreeRTOSConfig.h */<br>
                     #define ${strong('configGENERATE_RUN_TIME_STATS')}             1 /* 1: generate runtime statistics; 0: no runtime statistics */<br>
@@ -370,40 +345,21 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    private updateTotalRuntime(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
-            if (this.ulTotalRunTimeArray.length) {
-                const promises = [];
-                for (const rtVar of this.ulTotalRunTimeArray) {
-                    promises.push(rtVar?.getValue(frameId));
-                }
-                Promise.all(promises).then(
-                    (rtStrs) => {
-                        let total = 0;
-                        for (const rtStr of rtStrs) {
-                            total += parseInt(rtStr || '');
-                        }
-                        this.ulTotalRunTimeVal = total;
-                        resolve();
-                    },
-                    (e) => {
-                        reject(e);
-                    }
-                );
-            } else if (this.ulTotalRunTime) {
-                this.ulTotalRunTime.getValue(frameId).then(
-                    (ret) => {
-                        this.ulTotalRunTimeVal = parseInt(ret || '');
-                        resolve();
-                    },
-                    (e) => {
-                        reject(e);
-                    }
-                );
-            } else {
-                resolve();
+    private async updateTotalRuntime(frameId: number): Promise<void> {
+        if (!this.ulTotalRunTime) {
+            return;
+        }
+        try {
+            let total = 0;
+            const children = await this.ulTotalRunTime.getVarChildren(frameId);
+            for (const child of children) {
+                total += parseInt(child.value || '');
             }
-        });
+            this.ulTotalRunTimeVal = total;
+        } catch (e) {
+            const ret = await this.ulTotalRunTime.getValue(frameId);
+            this.ulTotalRunTimeVal = parseInt(ret || '');
+        }
     }
 
     public refresh(frameId: number): Promise<void> {
