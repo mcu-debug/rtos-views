@@ -15,10 +15,10 @@ jobs:
         name: Setup
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - name: Cache NPM Install
               id: cache-npm
-              uses: actions/cache@v3
+              uses: actions/cache@v4
               with:
                   path: ./node_modules
                   key: npm-${{ hashFiles('./package-lock.json') }}
@@ -32,17 +32,17 @@ jobs:
         needs: setup
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - name: Load NPM install
               id: cache-npm
-              uses: actions/cache@v3
+              uses: actions/cache@v4
               with:
                   path: ./node_modules
                   key: npm-${{ hashFiles('./package-lock.json') }}
             - name: Package Binary
               run: npm run package
             - name: Upload Artifact
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
                   name: vsix-package
                   path: ./*.vsix
@@ -53,10 +53,10 @@ jobs:
         needs: setup
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - name: Load NPM install
               id: cache-npm
-              uses: actions/cache@v3
+              uses: actions/cache@v4
               with:
                   path: ./node_modules
                   key: npm-${{ hashFiles('./package-lock.json') }}
