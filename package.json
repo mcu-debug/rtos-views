@@ -24,12 +24,14 @@
         "cppdbg",
         "embedded",
         "rtos",
-        "cortex"
+        "cortex",
+        "rtx6"
     ],
     "activationEvents": [
         "onDebugResolve:cortex-debug",
         "onDebugResolve:cppdbg",
-        "onDebugResolve:cspy"
+        "onDebugResolve:cspy",
+        "onDebugResolve:gdbtarget"
     ],
     "main": "./dist/extension.js",
     "contributes": {

@@ -8,6 +8,7 @@ import { RTOSUCOS2 } from './rtos-ucosii';
 import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
 import { RTOSZEPHYR } from './rtos-zephyr';
+import { RTOSRTX5 } from './rtos-rtx5';
 
 import {
     IDebugTracker,
@@ -24,6 +25,7 @@ export const TrackedDebuggers = [
     'cortex-debug',
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
+    'gdbtarget', // GDB debugger ?
 ];
 
 let trackerApi: IDebugTracker;
@@ -39,6 +41,8 @@ const RTOS_TYPES = {
     ChibiOS: RTOSChibiOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Zephyr: RTOSZEPHYR,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    RTX5: RTOSRTX5,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
