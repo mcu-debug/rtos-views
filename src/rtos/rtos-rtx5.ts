@@ -546,7 +546,9 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                             await this.readMemSection(frameId);
                             await this.gatherThreadInfo(frameId);
 
-                            this.finalThreads = [...this.foundThreads];
+                            this.finalThreads = this.foundThreads.sort((a, b) =>
+                                    parseInt(a.display['Address'].text) - parseInt(b.display['Address'].text)
+                            );
                             this.stale = false;
                             this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
                             resolve();
