@@ -122,11 +122,19 @@ const ThreadPriorityMap = new Map<number, { name: string, info: string }>([
 
 enum MemBlockType {
     cbSections = 'cbSections',
-    memSection = 'memSection',
+    memSection = 'osRtxInfo',
     mpiSection = 'mpiSection',
     idleThread = 'idleThread',
     timerThread = 'timerThread',
 }
+
+/*const MemBlockTypeMap = new Map<MemBlockType, string>([
+    [MemBlockType.cbSections, 'os_cb_sections'],
+    [MemBlockType.memSection, 'osRtxInfo.mem'],
+    [MemBlockType.mpiSection, 'osRtxInfo.mpi'],
+    [MemBlockType.idleThread, 'osRtxInfo.thread.idle'],
+    [MemBlockType.timerThread, 'osRtxInfo.timer.thread'],
+]);*/
 
 type TCBObject = {
     memBlock: MemBlockType;
@@ -138,12 +146,13 @@ type TCBObject = {
 // of the overall space.
 enum DisplayFields {
     Address,
+    //MemSection,
     TaskName,
     Status,
     Priority,
     StackPercent,
     StackFreePeak,
-    StackTopEnd,
+    //StackTopEnd,
 }
 
 const RTOSRTX5Items: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
@@ -152,6 +161,11 @@ RTOSRTX5Items[DisplayFields[DisplayFields.Address]] = {
     headerRow1: 'Thread',
     headerRow2: 'Address',
 };
+/*RTOSRTX5Items[DisplayFields[DisplayFields.MemSection]] = {
+    width: 1,
+    headerRow1: '',
+    headerRow2: 'Memory Section',
+};*/
 RTOSRTX5Items[DisplayFields[DisplayFields.TaskName]] = {
     width: 1,
     headerRow1: '',
@@ -179,11 +193,11 @@ RTOSRTX5Items[DisplayFields[DisplayFields.StackFreePeak]] = {
     headerRow2: 'Peak B (cur Free B)',
     colType: RTOSCommon.ColTypeEnum.colTypePercentage,
 };
-RTOSRTX5Items[DisplayFields[DisplayFields.StackTopEnd]] = { 
+/*RTOSRTX5Items[DisplayFields[DisplayFields.StackTopEnd]] = { 
     width: 1, 
     headerRow1: '', 
     headerRow2: 'Address' 
-};
+};*/
 
 const DisplayFieldNames: string[] = Object.keys(RTOSRTX5Items);
 
@@ -211,6 +225,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
     private tzInitContextSystem_S: RTOSCommon.RTOSVarHelperMaybe;
 
     private tcbObjects: TCBObject[] = [];
+    private threadAddress: number[] = [];
 
     private os_Config = {
         stack_check:  false,
@@ -373,43 +388,45 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
         const timerChilds = await this.os_timer?.getVarChildren(frameId);
         if (idleChilds && idleChilds.length >= 0) {
             this.idleThread = idleChilds;
-            //const childs = [idleChilds];
-            //this.tcbObjects.push({ memBlock: MemBlockType.idleThread, children: childs });
+            const childs = [idleChilds];
+            this.tcbObjects.push({ memBlock: MemBlockType.idleThread, children: childs });
         }
 
         if (timerChilds && timerChilds.length >= 0) {
             this.timerThread = timerChilds;
-            //const childs = [timerChilds];
-            //this.tcbObjects.push({ memBlock: MemBlockType.timerThread, children: childs });
+            const childs = [timerChilds];
+            this.tcbObjects.push({ memBlock: MemBlockType.timerThread, children: childs });
         }
         //console.log('RTX5: Idle and Timer threads evaluated:', idleChilds, timerChilds);
     }
 
     private async readMpiSection(frameId: number): Promise<void> {
-          /*const os_mem_sectionsNumArray = await Promise.all((os_mem_sections ?? []).map(async (section) => {
-            const addrExpr = `(${section.evaluateName})`;
-            const sizeExpr = `*((uint32_t *)(${section.evaluateName}))`;
-            const usedExpr = `*((uint32_t *)(${section.evaluateName} + sizeof(uint32_t)))`;
-            const addr = await this.getExprVal(addrExpr, frameId);
-            const size = await this.getExprVal(sizeExpr, frameId);
-            const used = await this.getExprVal(usedExpr, frameId);
-            return { name: section.name, addr, size, used,  };
-
-            block_base is where you start reading, control block size is the size to read and to increment the pointer,
-            max_blocks is the number of control blocks that can fit into memory pool.
-            Meaning that you can have gaps in memory, control blocks that belong to destroyed threads, hence check if they are valid
-            TCB[i].cb_valid = (TCB[i].id == 0xF1) &amp;&amp; (TCB[i].state != 0) &amp;&amp; (TCB[i].sp != 0);
-        }));*/
+        // block_base is where you start reading, control block size is the size to read and to increment the pointer,
+        // max_blocks is the number of control blocks that can fit into memory pool.
+        // Meaning that you can have gaps in memory, control blocks that belong to destroyed threads, hence check if they are valid
+        // TCB[i].cb_valid = (TCB[i].id == 0xF1) &amp;&amp; (TCB[i].state != 0) &amp;&amp; (TCB[i].sp != 0);
 
         const os_mpi_sections = await this.os_mpi_sections?.getVarChildren(frameId);
-        const os_mpi_sectionsNumArray = await Promise.all((os_mpi_sections ?? []).map(async (section) => {
-            const expr = `${section.evaluateName}`;
-            const value = await this.getExprVal(expr, frameId);
+        const mpiThreadObj = os_mpi_sections?.find((section) => section.name === 'thread');
+        const blockAddr = parseInt(mpiThreadObj?.value ?? '0');
+        if(blockAddr && mpiThreadObj && mpiThreadObj.evaluateName) {
+            const mpiThreadSection = await this.getExprValChildren(mpiThreadObj.evaluateName, frameId);
+            const blockSize = parseInt(mpiThreadSection.find((section) => section.name === 'block_size')?.value ?? '0');
+            const maxBlocks = parseInt(mpiThreadSection.find((section) => section.name === 'max_blocks')?.value ?? '0');
 
-            return value ? parseInt(value) : 0;
-        }));
+            for(let idx=0; idx < maxBlocks; idx++) {
+                const expr = `(osRtxThread_t*)(${mpiThreadObj.evaluateName}.block_base + (${idx * blockSize}))`;
+                const tcbObj = await this.getExprValChildren(expr, frameId);
 
-        //console.log('RTX5: MPI section evaluated:', os_mpi_sections, os_mpi_sectionsNumArray);
+                if (tcbObj && tcbObj.length > 0) {
+                    const tcb = tcbObj[0];
+                    if (tcb.value !== '0x0') {
+                        this.tcbObjects.push({ memBlock: MemBlockType.mpiSection, children: [tcbObj] });
+                    }
+                }
+            }
+        }
+        //console.log('RTX5: MPI section evaluated:', os_mpi_sections);
     }
 
     private async readMemSection(frameId: number): Promise<void> {
@@ -546,9 +563,18 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                             await this.readMemSection(frameId);
                             await this.gatherThreadInfo(frameId);
 
-                            this.finalThreads = this.foundThreads.sort((a, b) =>
+                            // Remove duplicate Address entries
+                            const uniqueThreads = new Map<string, RTOSCommon.RTOSThreadInfo>();
+                            for (const thread of this.foundThreads) {
+                                const addr = thread.display['Address'].text;
+                                if (!uniqueThreads.has(addr)) {
+                                    uniqueThreads.set(addr, thread);
+                                }
+                            }
+                            this.finalThreads = Array.from(uniqueThreads.values())
+                                .sort((a, b) =>
                                     parseInt(a.display['Address'].text) - parseInt(b.display['Address'].text)
-                            );
+                                );
                             this.stale = false;
                             this.timeInfo += ' in ' + timer.deltaMs() + ' ms';
                             resolve();
@@ -561,11 +587,27 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
         });
     }
 
-    private async getThreadInfo(tcbChild: DebugProtocol.Variable[], frameId: number, _memBlock: MemBlockType): Promise<void> {
+    private getTimerOrIdle(tcbChild: DebugProtocol.Variable[]) {
+        const threadAddrStr = tcbChild.find(item => item.name === 'thread_addr')?.value;
+        if (threadAddrStr !== undefined) {
+            const threadAddr = parseInt(threadAddrStr);
+            const timerAddr = parseInt(this.timerThread?.find(item => item.name === 'thread_addr')?.value ?? '0') ?? 0;
+            const idleAddr = parseInt(this.idleThread?.find(item => item.name === 'thread_addr')?.value ?? '0') ?? 0;
+
+            if (threadAddr === timerAddr) {
+                return '&lt;OS Timer&gt;';
+            } else if (threadAddr === idleAddr) {
+                return '&lt;OS Idle&gt;';
+            }
+        }
+        return undefined;
+    }
+
+
+    private async getThreadInfo(tcbChild: DebugProtocol.Variable[], frameId: number, memBlock: MemBlockType): Promise<void> {
         const stackWatermark = this.os_Config.stack_wmark ? 0xCC : undefined;
         const stackMagicWord = this.os_Config.stack_check ? 0xE25A2EA5 : undefined;
         const stackInfo = await this.getStackInfo(tcbChild, stackWatermark, stackMagicWord, frameId);
-
         const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
         const mySetter = (x: DisplayFields, text: string, value?: any) => {
             display[DisplayFieldNames[x]] = { text, value };
@@ -581,14 +623,31 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                 reject(new Error('Busy'));
                 return;
             }
-            let threadRunning = false;
 
+            // Validate TCB: all required fields must pass their checks, otherwise invalid
+            const tcbValid = tcbChild.reduce((valid, item) => {
+                if (!valid) {return false;}
+                switch (item.name) {
+                    case 'id': return parseInt(item.value) === 0xF1;
+                    case 'state': return parseInt(item.value) !== 0;
+                    case 'sp': return parseInt(item.value) !== 0;
+                    default: return valid;
+                }
+            }, true);
+
+            if (!tcbValid) {
+                resolve();
+                return;
+            }
+
+            let threadRunning = false;
             tcbChild
             .filter((item) =>   // filter out items that are not relevant for display, to not iterate through whole list each time
                 item.name === 'name'
                 || item.name === 'thread_addr'
                 || item.name === 'state'
-                || item.name === 'priority')
+                || item.name === 'priority'
+            )
             .forEach((item) => {
                 switch (item.name) {
                     case 'name': {
@@ -597,7 +656,8 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                         if (match && match[1]) {
                             mySetter(DisplayFields.TaskName, match[1]);
                         } else {
-                            mySetter(DisplayFields.TaskName, '&lt;not set&gt;');
+                            const name = this.getTimerOrIdle(tcbChild);
+                            mySetter(DisplayFields.TaskName, name ?? '&lt;not set&gt;');
                         }
                     } break;
                     case 'thread_addr': {
@@ -619,38 +679,44 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                 }
             });
 
-            const curTaskObj: RTOSCommon.RTOSStrToValueMap = {};
-            const stackPercent = stackInfo.stackPeak !== undefined && stackInfo.stackPeak >= 0
-                ? stackInfo.stackUsed !== undefined && stackInfo.stackSize !== undefined
-                    ? Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100)
-                    : 0
-                : 100;
-
-            mySetter(
-                DisplayFields.StackPercent,
-                stackInfo.stackUsed !== undefined && stackInfo.stackSize !== undefined
-                    ? `${stackPercent} % (${stackInfo.stackUsed} / ${stackInfo.stackSize})`
-                    : '?? %',
+            // Stack usage
+            if(stackInfo.stackUsed !== undefined && stackInfo.stackSize) {
+                const stackPercent = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
+                mySetter(
+                    DisplayFields.StackPercent,
+                    `${stackPercent} % (${stackInfo.stackUsed} / ${stackInfo.stackSize})`,
                     stackPercent
-            );
-            const peakPercent = stackInfo.stackPeak !== undefined && stackInfo.stackPeak >= 0 && stackInfo.stackSize !== undefined
+                );
+            } else {
+                mySetter(DisplayFields.StackPercent, '?? %');
+            }
+
+            // Stack free, peak
+            if(stackInfo.stackPeak !== undefined && stackInfo.stackSize !== undefined) {
+                const peakPercent = (stackInfo.stackPeak > 0)
                 ? Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100)
-                : 0;
-            mySetter(
-                DisplayFields.StackFreePeak,
-                stackInfo.stackFree !== undefined && stackInfo.stackPeak !== undefined
-                    ? stackInfo.stackPeak !== -1
-                        ? `${stackInfo.stackPeak} (${stackInfo.stackFree})`
-                        : 'OVERFLOW'
-                    : '??',
+                : 100;
+                mySetter(
+                    DisplayFields.StackFreePeak,
+                    stackInfo.stackPeak >= 0
+                        ? `${(stackInfo.stackPeak !== undefined) ? stackInfo.stackPeak : '??'} (${stackInfo.stackFree !== undefined ? stackInfo.stackFree : '??'})`
+                        : 'OVERFLOW',
                     peakPercent
-            );
-            mySetter(
+                );
+            } else {
+                mySetter(DisplayFields.StackFreePeak, '??');
+            }
+
+            /*mySetter(
                 DisplayFields.StackTopEnd,
                 stackInfo.stackTop !== undefined && stackInfo.stackEnd !== undefined
                     ? `${RTOSCommon.hexFormat(stackInfo.stackEnd, 8, true)} .. ${RTOSCommon.hexFormat(stackInfo.stackStart, 8, true)}`
                     : '??'
-            );
+            );*/
+            /*mySetter(
+                DisplayFields.MemSection,
+                MemBlockTypeMap.get(memBlock) ?? 'UNKNOWN'
+            );*/
 
             const thread: RTOSCommon.RTOSThreadInfo = {
                 display: display,
@@ -661,7 +727,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             resolve();
         });
     }
-
+    
     protected async getStackInfo(tcbChild: DebugProtocol.Variable[], waterMark: number | undefined, magicWord: number | undefined, frameId: number): Promise<RTOSCommon.RTOSStackInfo> {
         const stackSize = parseInt(tcbChild.find(item => item.name === 'stack_size')?.value ?? '0') ?? 0;
         const stackPointer = parseInt(tcbChild.find(item => item.name === 'sp')?.value ?? '0') ?? 0;
@@ -703,10 +769,12 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             }
         }
 
-        if (!RTOSCommon.RTOSBase.disableStackPeaks) {
+        if (!RTOSCommon.RTOSBase.disableStackPeaks && stackMemAddr !== 0) {
+            // if stack watermark is disabled but stack checking is enabled, we only read 4 bytes for the magic word
+            const stkSize = (this.os_Config.stack_check && !this.os_Config.stack_wmark)? 4 : stackSize;
             const memArg: DebugProtocol.ReadMemoryArguments = {
                 memoryReference: RTOSCommon.hexFormat(stackMemAddr),
-                count: stackSize
+                count: stkSize
             };
             try {
                 const stackData = await this.session.customRequest('readMemory', memArg);
@@ -714,7 +782,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                     const buf = Buffer.from(stackData.data, 'base64');
                     stackBytes = new Uint8Array(buf);
                     // Calculate magicWord from the first 4 bytes of stackBytes
-                    if(stackPeak !== -1) {
+                    if(this.os_Config.stack_check && stackPeak !== -1) {
                         const stackMagicWord = stackBytes.length >= 4
                             ? ((stackBytes[0] |
                                 (stackBytes[1] << 8) |
@@ -725,7 +793,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                             stackPeak = -1; // magic word is not correct, so we cannot calculate stack peak
                         }
                     }
-                    if(stackPeak !== -1) {
+                    if(this.os_Config.stack_wmark && stackPeak !== -1) {
                         let start = magicWord !== undefined? 4 : 0; // skip magic word at the start of stack
                         const end = stackBytes.length ;
                         while (start < end) {
@@ -746,9 +814,9 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             stackTop: currStackPointer, // current SP of thread
             stackEnd: stackMemAddr + stackSize, // highest address, start+size
             stackSize: stackSize, // size of stack buffer
-            stackUsed: stackCurrentUsed, // 
-            stackFree: stackSize - stackCurrentUsed, // 
-            stackPeak: stackPeak, // 
+            stackUsed: stackCurrentUsed, // current used stack size
+            stackFree: stackSize - stackCurrentUsed, // current free stack size
+            stackPeak: (stackPeak < 0 || this.os_Config.stack_wmark) ? stackPeak : undefined, // peak stack usage
             bytes: stackBytes
         };
     }
