@@ -151,7 +151,7 @@ enum DisplayFields {
     Status,
     Priority,
     StackPercent,
-    StackFreePeak,
+    StackPeak,
     //StackTopEnd,
 }
 
@@ -187,10 +187,10 @@ RTOSRTX5Items[DisplayFields[DisplayFields.StackPercent]] = {
     headerRow2: '% (Used B / Size B)',
     colType: RTOSCommon.ColTypeEnum.colTypePercentage,
 };
-RTOSRTX5Items[DisplayFields[DisplayFields.StackFreePeak]] = { 
+RTOSRTX5Items[DisplayFields[DisplayFields.StackPeak]] = { 
     width: 1, 
     headerRow1: '', 
-    headerRow2: 'Peak B (cur Free B)',
+    headerRow2: '% (Peak Bytes)',
     colType: RTOSCommon.ColTypeEnum.colTypePercentage,
 };
 /*RTOSRTX5Items[DisplayFields[DisplayFields.StackTopEnd]] = { 
@@ -357,8 +357,10 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
 
         const sectionsToEvaluate = sections
             .filter((section) => (
-                section.start !== undefined && section.start !== 0)
-                && (section.size !== undefined && section.size > 0));
+                section.name === 'TCB'
+                && section.start !== 0
+                && section.size > 0
+            ));
 
         const sectionsEvaluated = await Promise.all(
             sectionsToEvaluate.map(async (section) => {
@@ -604,9 +606,9 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
     }
 
 
-    private async getThreadInfo(tcbChild: DebugProtocol.Variable[], frameId: number, memBlock: MemBlockType): Promise<void> {
-        const stackWatermark = this.os_Config.stack_wmark ? 0xCC : undefined;
-        const stackMagicWord = this.os_Config.stack_check ? 0xE25A2EA5 : undefined;
+    private async getThreadInfo(tcbChild: DebugProtocol.Variable[], frameId: number, _memBlock: MemBlockType): Promise<void> {
+        const stackWatermark = 0xCC;
+        const stackMagicWord = 0xE25A2EA5;
         const stackInfo = await this.getStackInfo(tcbChild, stackWatermark, stackMagicWord, frameId);
         const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
         const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -691,20 +693,20 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
                 mySetter(DisplayFields.StackPercent, '?? %');
             }
 
-            // Stack free, peak
-            if(stackInfo.stackPeak !== undefined && stackInfo.stackSize !== undefined) {
-                const peakPercent = (stackInfo.stackPeak > 0)
-                ? Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100)
-                : 100;
+            // Stack peak
+            if(stackInfo.stackPeak !== undefined && stackInfo.stackPeak > 0 && stackInfo.stackSize !== undefined) {
+                const peakPercent = (stackInfo.stackPeak >= 0)
+                    ? Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100)
+                    : 100;
                 mySetter(
-                    DisplayFields.StackFreePeak,
+                    DisplayFields.StackPeak,
                     stackInfo.stackPeak >= 0
-                        ? `${(stackInfo.stackPeak !== undefined) ? stackInfo.stackPeak : '??'} (${stackInfo.stackFree !== undefined ? stackInfo.stackFree : '??'})`
+                        ? `${peakPercent} % (${(stackInfo.stackPeak)})`
                         : 'OVERFLOW',
                     peakPercent
                 );
             } else {
-                mySetter(DisplayFields.StackFreePeak, '??');
+                mySetter(DisplayFields.StackPeak, '??');
             }
 
             /*mySetter(
@@ -728,7 +730,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
         });
     }
     
-    protected async getStackInfo(tcbChild: DebugProtocol.Variable[], waterMark: number | undefined, magicWord: number | undefined, frameId: number): Promise<RTOSCommon.RTOSStackInfo> {
+    protected async getStackInfo(tcbChild: DebugProtocol.Variable[], waterMark: number, magicWord: number, frameId: number): Promise<RTOSCommon.RTOSStackInfo> {
         const stackSize = parseInt(tcbChild.find(item => item.name === 'stack_size')?.value ?? '0') ?? 0;
         const stackPointer = parseInt(tcbChild.find(item => item.name === 'sp')?.value ?? '0') ?? 0;
         const stackMemAddr = parseInt(tcbChild.find(item => item.name === 'stack_mem')?.value ?? '0') ?? 0;
@@ -747,8 +749,15 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             const pspReg = (pspRegStr ? parseInt(pspRegStr) : 0);
             const currPSP  = pspReg ?? stackPointer;
             currStackPointer = ((ipsrReg !== 0 && ipsrReg < 16)) ? (stackPointer) : (currPSP);
-            const sp_valid = ((ipsrReg !== 0 && ipsrReg < 16)) ? false : true;
         }
+
+        // Check parameters for stack calculation
+        if(stackMemAddr === 0 || stackSize === 0 || currStackPointer === 0) {
+            return {
+                stackStart: 0,
+                stackTop: 0,
+            };
+        } 
         
         const stackCurrentUsed = stackSize - Math.abs(currStackPointer - stackMemAddr);
         let stackBytes: Uint8Array | undefined;
@@ -758,50 +767,38 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             stackPeak = -1;
         }
 
-        if (RTOSCommon.RTOSBase.disableStackPeaks) {
-            if(magicWord !== undefined && stackMemAddr !== 0) {
-                const magicWordValInStackExpr = `*((uint32_t *)(${RTOSCommon.hexFormat(stackMemAddr)}))`;
-                const magicWordValInStack = await this.getExprVal(magicWordValInStackExpr, frameId);
-                const magicWordValInStackNum = magicWordValInStack ? parseInt(magicWordValInStack) : 0;
-                if(magicWordValInStackNum !== 0 && magicWordValInStackNum !== magicWord) {
-                    stackPeak = -1;
-                }
+        // Note: Magic Word is always set!
+        if (RTOSCommon.RTOSBase.disableStackPeaks || !this.os_Config.stack_wmark) {
+            const magicWordReadExpr = `*((uint32_t *)(${RTOSCommon.hexFormat(stackMemAddr)}))`;
+            const magicWordValStr = await this.getExprVal(magicWordReadExpr, frameId);
+            const magicWordVal = magicWordValStr ? parseInt(magicWordValStr) : 0;
+            if (magicWordVal !== 0 && magicWordVal !== magicWord) {
+                stackPeak = -1;
             }
         }
-
-        if (!RTOSCommon.RTOSBase.disableStackPeaks && stackMemAddr !== 0) {
-            // if stack watermark is disabled but stack checking is enabled, we only read 4 bytes for the magic word
-            const stkSize = (this.os_Config.stack_check && !this.os_Config.stack_wmark)? 4 : stackSize;
+        else {
             const memArg: DebugProtocol.ReadMemoryArguments = {
                 memoryReference: RTOSCommon.hexFormat(stackMemAddr),
-                count: stkSize
+                count: currStackPointer - stackMemAddr,
             };
             try {
                 const stackData = await this.session.customRequest('readMemory', memArg);
                 if(stackData !== undefined && stackData.data !== undefined) {
                     const buf = Buffer.from(stackData.data, 'base64');
                     stackBytes = new Uint8Array(buf);
-                    // Calculate magicWord from the first 4 bytes of stackBytes
-                    if(this.os_Config.stack_check && stackPeak !== -1) {
-                        const stackMagicWord = stackBytes.length >= 4
-                            ? ((stackBytes[0] |
-                                (stackBytes[1] << 8) |
-                                (stackBytes[2] << 16) |
-                                (stackBytes[3] << 24)) >>> 0)
-                            : 0;
-                        if (magicWord !== undefined && stackMagicWord !== magicWord) {
-                            stackPeak = -1; // magic word is not correct, so we cannot calculate stack peak
+                    if(stackPeak !== -1 && stackBytes.length >= 4) {
+                        const stackMagicWord = ( // Calculate magicWord from the first 4 bytes of stackBytes
+                            (stackBytes[0] |
+                            (stackBytes[1] << 8) |
+                            (stackBytes[2] << 16) |
+                            (stackBytes[3] << 24)) >>> 0);
+                        if (stackMagicWord !== magicWord) {
+                            stackPeak = -1; // magic word is not correct, mark overflow
                         }
                     }
-                    if(this.os_Config.stack_wmark && stackPeak !== -1) {
-                        let start = magicWord !== undefined? 4 : 0; // skip magic word at the start of stack
-                        const end = stackBytes.length ;
-                        while (start < end) {
-                            if (stackBytes[start++] !== waterMark) {
-                                break;
-                            }
-                        }
-                        stackPeak = stackSize - start + 1;
+                    if (stackPeak !== -1) {
+                        const unused = stackBytes.slice(4).findIndex(b => b !== waterMark);
+                        stackPeak = stackSize - (unused >= 0 ? unused : stackBytes.length - 4);
                     }
                 }
             } catch (e) {
@@ -816,7 +813,7 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
             stackSize: stackSize, // size of stack buffer
             stackUsed: stackCurrentUsed, // current used stack size
             stackFree: stackSize - stackCurrentUsed, // current free stack size
-            stackPeak: (stackPeak < 0 || this.os_Config.stack_wmark) ? stackPeak : undefined, // peak stack usage
+            stackPeak: stackPeak, // peak stack usage
             bytes: stackBytes
         };
     }
