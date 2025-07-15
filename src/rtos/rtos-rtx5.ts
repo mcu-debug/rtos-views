@@ -16,7 +16,7 @@ const SCVD_cbSectionsObjects = [
     { name: 'QCB', type: 'osRtxMessageQueue_t', size: 52 }
 ];
 
-const _SCVD_mpiSectionsObjects = [
+/*const SCVD_mpiSectionsObjects = [
     { name: 'stack', type: 'osRtxMpInfo_t' },
     { name: 'thread', type: 'osRtxMpInfo_t' },
     { name: 'timer', type: 'osRtxMpInfo_t' },
@@ -25,7 +25,7 @@ const _SCVD_mpiSectionsObjects = [
     { name: 'semaphore', type: 'osRtxMpInfo_t' },
     { name: 'memory_pool', type: 'osRtxMpInfo_t' },
     { name: 'message_queue', type: 'osRtxMpInfo_t' }
-];
+];*/
 
 const Rtx5MemSectionType = new Map<number, { name: string, type: string }>([
     [0x00, { name: 'UNKNOWN', type: 'uint8_t' }],   // Unknown Block
@@ -242,7 +242,6 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private finalThreads: RTOSCommon.RTOSThreadInfo[] = [];
     private timeInfo = '';
-    private readonly maxThreads = 1024;
     private helpHtml: string | undefined;
     private idleThread: DebugProtocol.Variable[] | undefined;
     private timerThread: DebugProtocol.Variable[] | undefined;
@@ -403,9 +402,9 @@ export class RTOSRTX5 extends RTOSCommon.RTOSBase {
     }
 
     private async readMpiSection(frameId: number): Promise<void> {
-        // block_base is where you start reading, control block size is the size to read and to increment the pointer,
+        // block_base is where we start reading, control block size is the size to read and to increment the pointer,
         // max_blocks is the number of control blocks that can fit into memory pool.
-        // Meaning that you can have gaps in memory, control blocks that belong to destroyed threads, hence check if they are valid
+        // Meaning that we can have gaps in memory, control blocks that belong to destroyed threads, hence check if they are valid
         // TCB[i].cb_valid = (TCB[i].id == 0xF1) &amp;&amp; (TCB[i].state != 0) &amp;&amp; (TCB[i].sp != 0);
 
         const os_mpi_sections = await this.os_mpi_sections?.getVarChildren(frameId);
