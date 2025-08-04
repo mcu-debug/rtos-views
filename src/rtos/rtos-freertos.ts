@@ -749,20 +749,27 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)
         };
-        const stackDelta = Math.abs(stackInfo.stackTop - stackInfo.stackStart);
-        if (this.stackIncrements < 0) {
-            stackInfo.stackFree = stackDelta;
-        } else {
-            stackInfo.stackUsed = stackDelta;
+        const xMPUSettings =
+            'xMPUSettings' in thInfo && await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings') || {};
+        const contextOnStack = !('ulContext' in xMPUSettings);
+        const stackDelta = contextOnStack ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
+        if (stackDelta !== undefined) {
+            if (this.stackIncrements < 0) {
+                stackInfo.stackFree = stackDelta;
+            } else {
+                stackInfo.stackUsed = stackDelta;
+            }
         }
 
         if (pxEndOfStack) {
             stackInfo.stackEnd = parseInt(pxEndOfStack);
             stackInfo.stackSize = Math.abs(stackInfo.stackStart - stackInfo.stackEnd);
-            if (this.stackIncrements < 0) {
-                stackInfo.stackUsed = stackInfo.stackSize - stackDelta;
-            } else {
-                stackInfo.stackFree = stackInfo.stackSize - stackDelta;
+            if (stackDelta !== undefined) {
+                if (this.stackIncrements < 0) {
+                    stackInfo.stackUsed = stackInfo.stackSize - stackDelta;
+                } else {
+                    stackInfo.stackFree = stackInfo.stackSize - stackDelta;
+                }
             }
             if (!RTOSCommon.RTOSBase.disableStackPeaks) {
                 const memArg: DebugProtocol.ReadMemoryArguments = {
