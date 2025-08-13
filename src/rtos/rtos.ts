@@ -24,6 +24,7 @@ export const TrackedDebuggers = [
     'cortex-debug',
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
+    'mplab-core-da' // Microchip debugger
 ];
 
 let trackerApi: IDebugTracker;
