@@ -130,6 +130,8 @@ interface IQueueWaitInfo {
     waitingList: string[]; // list of thread addresses (handles)
 }
 
+type Architecture = null | 'armv6m' | 'armv7m' | 'armv8m' | 'armv7r'; // or ARMv8-R in 32-bit mode
+
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -148,6 +150,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
     private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
+    private xSecureContext: RTOSCommon.RTOSVarHelperMaybe;
+    private armCPUID: RTOSCommon.RTOSVarHelperMaybe;
+    private registerNames: string[] | undefined;
+    private architecture: Architecture | undefined;
 
     private stale = true;
     private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
@@ -221,6 +227,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 );
                 this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
                 this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
+                this.xSecureContext = await this.getVarIfEmpty(this.xSecureContext, useFrameId, 'xSecureContext', true);
+
+                this.registerNames = await this.getRegisterNamesIfEmpty(this.registerNames, useFrameId);
+                this.architecture = await this.detectArchitecture(this.registerNames, useFrameId);
 
                 this.status = 'initialized';
             }
@@ -234,6 +244,43 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
             return this;
         }
+    }
+
+    private async detectArchitecture(registerNames: string[], frameId: number): Promise<Architecture> {
+        if (registerNames.some((r) => r.toLowerCase() === 'xpsr')) {
+            // ARM Cortex-M
+            const ARM_CPUID_EXPR = '*(unsigned int *)0xe000ed00';
+            this.armCPUID = await this.getVarIfEmpty(this.armCPUID, frameId, ARM_CPUID_EXPR, true);
+            if (this.armCPUID) {
+                const cpuid = parseInt(this.armCPUID.value || '') || 0;
+                const implementer = (cpuid >> 24) & 0xff;
+                const arch = (cpuid >> 16) & 0xf;
+                const partNo = (cpuid >> 4) & 0xfff;
+                if (!(implementer in [0x00, 0xff])) {
+                    if (isARMv6M(arch, partNo)) {
+                        return 'armv6m';
+                    } else if (isARMv7M(arch, partNo)) {
+                        return 'armv7m';
+                    } else if (isARMv8M(arch, partNo)) {
+                        return 'armv8m';
+                    }
+                }
+            }
+        } else if (registerNames.some((r) => r.toLowerCase() === 'cpsr')) {
+            // ARM Cortex-R
+
+            // Could also be Cortex-A, but:
+            // * architecture detection is only used by MPU support.
+            // * FreeRTOS on Cortex-A doesn't support the FreeRTOS-MPU API.
+            // * Cortex-A doesn't even have an MPU, it has an MMU.
+            //
+            // If architecture detection is ever used outside of MPU support and
+            // it becomes necessary to detect Cortex-A, this will have to be
+            // made more clever.
+            return 'armv7r';
+        }
+
+        return null;
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
@@ -639,7 +686,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 (await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId)) || '';
                             const match = tmpThName.match(/"([^*]*)"$/);
                             const thName = match ? match[1] : tmpThName;
-                            const stackInfo = await this.getStackInfo(thInfo, 0xA5);
+                            const stackInfo = await this.getStackInfo(thInfo, 0xA5, frameId);
                             // This is the order we want stuff in
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
                             const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -741,7 +788,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number, frameId: number) {
         const pxStack = thInfo['pxStack']?.val;
         const pxTopOfStack = thInfo['pxTopOfStack']?.val;
         const pxEndOfStack = thInfo['pxEndOfStack']?.val;
@@ -749,10 +796,12 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)
         };
-        const xMPUSettings =
-            'xMPUSettings' in thInfo && await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings') || {};
-        const contextOnStack = !('ulContext' in xMPUSettings);
-        const stackDelta = contextOnStack ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
+        const mpuStackTop = await this.mpuGetStackTop(thInfo, frameId);
+        if (mpuStackTop !== null && mpuStackTop !== undefined) {
+            stackInfo.stackTop = mpuStackTop;
+        }
+
+        const stackDelta = mpuStackTop !== null ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
         if (stackDelta !== undefined) {
             if (this.stackIncrements < 0) {
                 stackInfo.stackFree = stackDelta;
@@ -797,6 +846,128 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
         }
         return stackInfo;
+    }
+
+    // returns:
+    // * number: a stack pointer read from the task's MPU context, to use instead of pxTopOfStack
+    // * undefined: no MPU context was found (meaning pxTopOfStack can be used for deltas)
+    // * null: MPU context was found, but could not be interpreted (unsupported architecture, unexpected size, etc.)
+    private async mpuGetStackTop(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        frameId: number
+    ): Promise<number | null | undefined> {
+        if (!('xMPUSettings' in thInfo)) {
+            return undefined;
+        }
+        const xMPUSettings = (await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings')) || {};
+
+        // non-privileged tasks use a separate system call stack, and back up
+        // their task SP. Use that backup if it's present and non-NULL.
+        if ('xSystemCallStackInfo' in xMPUSettings) {
+            const xSystemCallStackInfo =
+                (await this.getVarChildrenObj(xMPUSettings['xSystemCallStackInfo'].ref, 'xSystemCallStackInfo')) || {};
+
+            const pulTaskStack = xSystemCallStackInfo['pulTaskStack'] ?? xSystemCallStackInfo['pulTaskStackPointer'];
+            if (pulTaskStack?.val) {
+                const taskSP = parseInt(pulTaskStack.val);
+                if (taskSP !== 0) {
+                    return taskSP;
+                }
+            }
+        }
+
+        if (!('ulContext' in xMPUSettings)) {
+            return undefined;
+        }
+        const ulContext = Object.values(
+            (await this.getVarChildrenObj(xMPUSettings['ulContext'].ref, 'ulContext')) || {}
+        );
+
+        if (this.architecture) {
+            if (this.architecture.match(/^arm/)) {
+                return await this.mpuGetARMStackTop(thInfo, xMPUSettings, ulContext, frameId);
+            }
+            // Future architecture support goes here
+        }
+
+        // Currently unsupported architecture
+        return null;
+    }
+
+    private async mpuGetARMStackTop(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        xMPUSettings: RTOSCommon.RTOSStrToValueMap,
+        ulContext: RTOSCommon.VarObjVal[],
+        frameId: number
+    ): Promise<number | null> {
+        const MINIMUM_CONTEXT_SIZE = 16 + 1; // r0-r15, plus xPSR or CPSR
+        const FPU_CONTEXT_SIZE = 32 + 1; // s0-s31 or d0-d15, plus FPSCR
+        // Any context at least this big is assumed to start with FPU context.
+        const CONTEXT_SIZE_FPU_THRESHOLD = MINIMUM_CONTEXT_SIZE + FPU_CONTEXT_SIZE;
+
+        let spIndex: number;
+        switch (this.architecture) {
+            case 'armv6m':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CM0/portmacro.h
+                spIndex = 16;
+                break;
+            case 'armv7m':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CM[34]_MPU/portmacro.h
+                spIndex = 10;
+                break;
+            case 'armv8m':
+                // source: FreeRTOS-Kernel:portable/ARMv8M/non_secure/portmacrocommon.h
+                spIndex = 16 + Number(!!this.xSecureContext);
+                break;
+            case 'armv7r':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CRx_MPU/portmacro_asm.h
+                spIndex = 14;
+                break;
+            default:
+                return null;
+        }
+
+        const contextSize = this.architecture.endsWith('m')
+            ? await this.mpuContextSizeCortexM(thInfo, xMPUSettings, frameId)
+            : this.mpuContextSizeCortexR(ulContext);
+        if (contextSize < MINIMUM_CONTEXT_SIZE) {
+            // currently running task, can't introspect stale context
+            // without knowing what size it was.
+            // See also: https://github.com/mcu-debug/rtos-views/issues/28
+            return null;
+        }
+        if (contextSize >= CONTEXT_SIZE_FPU_THRESHOLD) {
+            spIndex += FPU_CONTEXT_SIZE;
+        }
+
+        if (!ulContext[spIndex]?.val) {
+            return null;
+        }
+        return parseInt(ulContext[spIndex].val);
+    }
+
+    // Returns 0 if the context size could not be determined.
+    private async mpuContextSizeCortexM(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        xMPUSettings: RTOSCommon.RTOSStrToValueMap,
+        frameId: number
+    ): Promise<number> {
+        // Decided at runtime on a task-by-task basis from EXC_RETURN & 0x20
+
+        if (!thInfo['pxTopOfStack']?.val) {
+            return 0;
+        }
+        const pxTopOfStack = thInfo['pxTopOfStack'].val;
+        const ulContextAddr = await this.getExprVal(pointerTo(xMPUSettings['ulContext'].exp as string), frameId);
+        if (!ulContextAddr) {
+            return 0;
+        }
+        return Math.abs(parseInt(pxTopOfStack) - parseInt(ulContextAddr)) / 4;
+    }
+
+    private mpuContextSizeCortexR(ulContext: RTOSCommon.VarObjVal[]): number {
+        // Determined at compile-time by configENABLE_FPU == 1
+        return ulContext.length;
     }
 
     public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -878,4 +1049,35 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         this.lastValidHtmlContent = htmlContent;
         return this.lastValidHtmlContent;
     }
+}
+
+function isARMv6M(arch: number, partNo: number) {
+    // Cortex-M0:  0xc, 0xc20
+    // Cortex-M0+: 0xc, 0xc60
+    // Cortex-M1:  0xc, 0xc21
+    return arch === 0xc && (partNo & 0xf00) === 0xc00;
+}
+
+function isARMv7M(arch: number, partNo: number) {
+    // Cortex-M3: 0xf, 0xc23
+    // Cortex-M4: 0xf, 0xc24
+    // Cortex-M7: 0xf, 0xc27
+    return arch === 0xf && (partNo & 0xf00) === 0xc00;
+}
+
+function isARMv8M(arch: number, partNo: number) {
+    // Cortex-M23:    0xc, 0xd20 (incl. Realtek M200)
+    // Cortex-M33:    0xf, 0xd21 (incl. Realtek M300)
+    // Cortex-M35P:   0xf, 0xd31
+    // Cortex-M55:    0xf, 0xd22
+    // Cortex-M85:    0xf, 0xd23
+    // Below derived from https://sourceforge.net/p/openocd/code/ci/master/tree/src/target/cortex_m.h
+    // Cortex-M52:    0xf, 0xd24
+    // Star-MC1:      0xf, 0x132
+    // Infineon SLX2: 0xf, 0xdb0
+    return arch in [0xc, 0xf] && (partNo & 0xf00) in [0xd00, 0x100];
+}
+
+function pointerTo(expr: string): string {
+    return `&(${expr})`;
 }

@@ -190,6 +190,68 @@ export abstract class RTOSBase {
         }
     }
 
+    protected async getRegisterNamesIfEmpty(registerNames: string[] | undefined, useFrameId: number): Promise<string[]> {
+        if (registerNames !== undefined) {
+            return registerNames;
+        }
+        try {
+            if (this.progStatus !== 'stopped') {
+                throw new Error('Failed to get register names');
+            }
+            const registers = await this.getRegisters(useFrameId);
+            return Object.keys(registers);
+        } catch (e) {
+            if (this.progStatus !== 'stopped') {
+                throw new ShouldRetry('register scopes');
+            } else {
+                return [];
+            }
+        }
+    }
+
+    // Actually walks the contents of any variable scopes with "[Rr]egisters" in
+    // their names. Such scopes aren't guaranteed by the DAP standard to exist,
+    // but most DAP servers that provide access to registers seem to provide at
+    // least one scope with a matching name.
+    private async getRegisters(frameId: number): Promise<RTOSStrToValueMap> {
+        const scopes = await this.getScopes(frameId);
+        const registers: RTOSStrToValueMap = {};
+        for (const scope of scopes) {
+            if (scope.name.toLowerCase().match('registers')) {
+                await this.collectChildren(registers, scope.variablesReference, 'Registers');
+            }
+        }
+        return registers;
+    }
+
+    private async getScopes(useFrameId: number): Promise<DebugProtocol.Scope[]> {
+        const arg: DebugProtocol.ScopesArguments = {
+            frameId: useFrameId
+        };
+
+        const result = await this.customRequest('scopes', arg);
+        if (!result || !result.scopes || !result.scopes.length) {
+            throw new Error('Failed to retrieve variable scopes');
+        }
+
+        return result.scopes;
+    }
+
+    private async collectChildren(collection: RTOSStrToValueMap, varRef: number, dbg: string) {
+        const children = await this.getVarChildrenObj(varRef, dbg);
+        if (!children) {
+            return;
+        }
+        for (const childName of Object.keys(children)) {
+            const child = children[childName];
+            if (child.ref) {
+                await this.collectChildren(collection, child.ref, dbg);
+            } else {
+                collection[childName] = child;
+            }
+        }
+    }
+
     protected getVarChildren(varRef: number, dbg: string): Promise<DebugProtocol.Variable[]> {
         return new Promise<DebugProtocol.Variable[]>((resolve, reject) => {
             if (this.progStatus !== 'stopped') {
