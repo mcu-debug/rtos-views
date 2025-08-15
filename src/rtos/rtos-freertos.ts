@@ -130,6 +130,10 @@ interface IQueueWaitInfo {
     waitingList: string[]; // list of thread addresses (handles)
 }
 
+const ARM_CPUID_EXPR = '*(unsigned int *)0xe000ed00';
+
+type Architecture = null | 'armv6m' | 'armv7m' | 'armv8m' | 'armv7r'; // or ARMv8-R in 32-bit mode
+
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -148,6 +152,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
     private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
+    private xSecureContext: RTOSCommon.RTOSVarHelperMaybe;
+    private armCPUID: RTOSCommon.RTOSVarHelperMaybe;
+    private registerNames: string[] | undefined;
+    private architecture: Architecture | undefined;
 
     private stale = true;
     private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
@@ -221,6 +229,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 );
                 this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
                 this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
+                this.xSecureContext = await this.getVarIfEmpty(this.xSecureContext, useFrameId, 'xSecureContext', true);
+
+                this.registerNames = await this.getRegisterNamesIfEmpty(this.registerNames, useFrameId);
+                this.architecture = await this.detectArchitecture(this.registerNames, useFrameId);
 
                 this.status = 'initialized';
             }
@@ -234,6 +246,60 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
             return this;
         }
+    }
+
+    private async detectArchitecture(registerNames: string[], frameId: number): Promise<Architecture> {
+        if (registerNames.some((r) => r.toLowerCase() === 'xpsr')) {
+            // ARM Cortex-M
+            this.armCPUID = await this.getVarIfEmpty(this.armCPUID, frameId, ARM_CPUID_EXPR, true);
+            if (this.armCPUID) {
+                const cpuid = parseInt(this.armCPUID.value || '') || 0;
+                const implementer = (cpuid >> 24) & 0xff;
+                const arch = (cpuid >> 16) & 0xf;
+                const partNo = (cpuid >> 4) & 0xfff;
+                if (!(implementer in [0x00, 0xff])) {
+                    if (this.isARMv6M(arch, partNo)) {
+                        return 'armv6m';
+                    } else if (this.isARMv7M(arch, partNo)) {
+                        return 'armv7m';
+                    } else if (this.isARMv8M(arch, partNo)) {
+                        return 'armv8m';
+                    }
+                }
+            }
+        } else if (registerNames.some((r) => r.toLowerCase() === 'cpsr')) {
+            // ARM Cortex-R
+            return 'armv7r';
+        }
+
+        return null;
+    }
+
+    private isARMv6M(arch: number, partNo: number) {
+        // Cortex-M0:  0xc, 0xc20
+        // Cortex-M0+: 0xc, 0xc60
+        // Cortex-M1:  0xc, 0xc21
+        return arch === 0xc && (partNo & 0xf00) === 0xc00;
+    }
+
+    private isARMv7M(arch: number, partNo: number) {
+        // Cortex-M3: 0xf, 0xc23
+        // Cortex-M4: 0xf, 0xc24
+        // Cortex-M7: 0xf, 0xc27
+        return arch === 0xf && (partNo & 0xf00) === 0xc00;
+    }
+
+    private isARMv8M(arch: number, partNo: number) {
+        // Partially sourced from https://sourceforge.net/p/openocd/code/ci/master/tree/src/target/cortex_m.h
+        // Cortex-M23:    0xc, 0xd20 (incl. Realtek M200)
+        // Cortex-M33:    0xf, 0xd21 (incl. Realtek M300)
+        // Cortex-M35P:   0xf, 0xd31
+        // Cortex-M52:    0xf, 0xd24
+        // Cortex-M55:    0xf, 0xd22
+        // Cortex-M85:    0xf, 0xd23
+        // Star-MC1:      0xf, 0x132
+        // Infineon SLX2: 0xf, 0xdb0
+        return arch in [0xc, 0xf] && (partNo & 0xf00) in [0xd00, 0x100];
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
@@ -749,10 +815,12 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)
         };
-        const xMPUSettings =
-            'xMPUSettings' in thInfo && await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings') || {};
-        const contextOnStack = !('ulContext' in xMPUSettings);
-        const stackDelta = contextOnStack ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
+        const mpuStackTop = await this.mpuGetStackTop(thInfo);
+        if (mpuStackTop !== null && mpuStackTop !== undefined) {
+            stackInfo.stackTop = mpuStackTop;
+        }
+
+        const stackDelta = mpuStackTop !== null ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
         if (stackDelta !== undefined) {
             if (this.stackIncrements < 0) {
                 stackInfo.stackFree = stackDelta;
@@ -797,6 +865,77 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
         }
         return stackInfo;
+    }
+
+    // returns:
+    // * number: a stack pointer read from the MPU task context, to use instead of pxTopOfStack
+    // * undefined: no separate context block was found (meaning pxTopOfStack can be used for deltas)
+    // * null: MPU task context was found, but could not be interpreted (unsupported architecture, unexpected size, etc.)
+    private async mpuGetStackTop(thInfo: RTOSCommon.RTOSStrToValueMap): Promise<number | null | undefined> {
+        const xMPUSettings =
+            ('xMPUSettings' in thInfo && (await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings'))) ||
+            {};
+
+        // non-privileged tasks use a separate system call stack, and back up
+        // their task SP. Use that backup if it's present and non-NULL.
+        if ('xSystemCallStackInfo' in xMPUSettings) {
+            const xSystemCallStackInfo =
+                (await this.getVarChildrenObj(xMPUSettings['xSystemCallStackInfo'].ref, 'xSystemCallStackInfo')) || {};
+
+            const pulTaskStack = xSystemCallStackInfo['pulTaskStack'] ?? xSystemCallStackInfo['pulTaskStackPointer'];
+            if (pulTaskStack) {
+                const taskSP = parseInt(pulTaskStack.val);
+                if (taskSP !== 0) {
+                    return taskSP;
+                }
+            }
+        }
+
+        if (!('ulContext' in xMPUSettings)) {
+            return undefined;
+        }
+        const ulContext = Object.values(
+            (await this.getVarChildrenObj(xMPUSettings['ulContext'].ref, 'ulContext')) || {}
+        );
+
+        // ulContext layout varies between architectures
+        if (ulContext && ulContext.length && this.architecture) {
+            if (this.architecture.match(/^arm/)) {
+                return this.mpuGetARMStackTop(ulContext);
+            }
+            // Future architecture support goes here
+        }
+
+        // Currently unsupported architecture
+        return null;
+    }
+
+    private mpuGetARMStackTop(ulContext: RTOSCommon.VarObjVal[]): number | null {
+        let spIndex = this.mpuGetARMBaseSP();
+        if (spIndex === null) {
+            return null;
+        }
+
+        if (ulContext.length >= 50) {
+            // configENABLE_FPU == 1
+            spIndex += 33;
+        }
+
+        if (spIndex < ulContext.length) {
+            return parseInt(ulContext[spIndex].val);
+        }
+
+        return null;
+    }
+
+    private mpuGetARMBaseSP(): number | null {
+        switch (this.architecture) {
+            case 'armv6m': return 16;
+            case 'armv8m': return 16 + Number(!!this.xSecureContext);
+            case 'armv7m': return 10;
+            case 'armv7r': return 14;
+            default: return null;
+        }
     }
 
     public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
