@@ -525,9 +525,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         }
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
-            stackStart: Stack,
-            stackTop: parseInt(TopOfStack)
+            stackStart: Stack
         };
+        stackInfo.stackTop = parseInt(TopOfStack);
 
         if (EndOfStack !== 0 && StackSize !== 0) {
             stackInfo.stackEnd = EndOfStack;

@@ -7,7 +7,7 @@ export const traceVars = false;
 
 export interface RTOSStackInfo {
     stackStart: number;
-    stackTop: number;
+    stackTop?: number;
     stackEnd?: number;
     stackSize?: number;
     stackUsed?: number;

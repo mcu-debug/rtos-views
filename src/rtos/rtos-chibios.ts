@@ -669,8 +669,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
     protected async getStackInfo(threadAddr:number, threadInfo: RTOSCommon.RTOSStrToValueMap, frameId: number) {
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
-            stackStart: 0,
-            stackTop: 0
+            stackStart: 0
         };
 
         stackInfo.stackEnd = getNumberNVL(threadInfo['wabase']?.val, 0);

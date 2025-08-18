@@ -734,7 +734,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 }
                             }
                             mySetter(DisplayFields.StackStart, RTOSCommon.hexFormat(stackInfo.stackStart));
-                            mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
+                            mySetter(
+                                DisplayFields.StackTop,
+                                stackInfo.stackTop ? RTOSCommon.hexFormat(stackInfo.stackTop) : '0x????????'
+                            );
                             mySetter(
                                 DisplayFields.StackEnd,
                                 stackInfo.stackEnd ? RTOSCommon.hexFormat(stackInfo.stackEnd) : '0x????????'
@@ -797,11 +800,13 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackTop: parseInt(pxTopOfStack)
         };
         const mpuStackTop = await this.mpuGetStackTop(thInfo, frameId);
-        if (mpuStackTop !== null && mpuStackTop !== undefined) {
+        if (mpuStackTop === null) {
+            stackInfo.stackTop = undefined;
+        } else if (mpuStackTop !== undefined) {
             stackInfo.stackTop = mpuStackTop;
         }
 
-        const stackDelta = mpuStackTop !== null ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
+        const stackDelta = stackInfo.stackTop !== undefined ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
         if (stackDelta !== undefined) {
             if (this.stackIncrements < 0) {
                 stackInfo.stackFree = stackDelta;
