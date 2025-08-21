@@ -130,8 +130,6 @@ interface IQueueWaitInfo {
     waitingList: string[]; // list of thread addresses (handles)
 }
 
-type Architecture = null | 'armv6m' | 'armv7m' | 'armv8m' | 'armv7r'; // or ARMv8-R in 32-bit mode
-
 export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -151,9 +149,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private ulTotalRunTimeVal = 0;
     private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
     private xSecureContext: RTOSCommon.RTOSVarHelperMaybe;
-    private armCPUID: RTOSCommon.RTOSVarHelperMaybe;
-    private registerNames: string[] | undefined;
-    private architecture: Architecture | undefined;
+    private architecture: RTOSCommon.Architecture | undefined;
 
     private stale = true;
     private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
@@ -229,8 +225,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
                 this.xSecureContext = await this.getVarIfEmpty(this.xSecureContext, useFrameId, 'xSecureContext', true);
 
-                this.registerNames = await this.getRegisterNamesIfEmpty(this.registerNames, useFrameId);
-                this.architecture = await this.detectArchitecture(this.registerNames, useFrameId);
+                this.architecture = await this.detectArchitectureIfEmpty(this.architecture, useFrameId);
 
                 this.status = 'initialized';
             }
@@ -244,43 +239,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
             return this;
         }
-    }
-
-    private async detectArchitecture(registerNames: string[], frameId: number): Promise<Architecture> {
-        if (registerNames.some((r) => r.toLowerCase() === 'xpsr')) {
-            // ARM Cortex-M
-            const ARM_CPUID_EXPR = '*(unsigned int *)0xe000ed00';
-            this.armCPUID = await this.getVarIfEmpty(this.armCPUID, frameId, ARM_CPUID_EXPR, true);
-            if (this.armCPUID) {
-                const cpuid = parseInt(this.armCPUID.value || '') || 0;
-                const implementer = (cpuid >> 24) & 0xff;
-                const arch = (cpuid >> 16) & 0xf;
-                const partNo = (cpuid >> 4) & 0xfff;
-                if (!(implementer in [0x00, 0xff])) {
-                    if (isARMv6M(arch, partNo)) {
-                        return 'armv6m';
-                    } else if (isARMv7M(arch, partNo)) {
-                        return 'armv7m';
-                    } else if (isARMv8M(arch, partNo)) {
-                        return 'armv8m';
-                    }
-                }
-            }
-        } else if (registerNames.some((r) => r.toLowerCase() === 'cpsr')) {
-            // ARM Cortex-R
-
-            // Could also be Cortex-A, but:
-            // * architecture detection is only used by MPU support.
-            // * FreeRTOS on Cortex-A doesn't support the FreeRTOS-MPU API.
-            // * Cortex-A doesn't even have an MPU, it has an MMU.
-            //
-            // If architecture detection is ever used outside of MPU support and
-            // it becomes necessary to detect Cortex-A, this will have to be
-            // made more clever.
-            return 'armv7r';
-        }
-
-        return null;
     }
 
     protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
@@ -1054,33 +1012,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         this.lastValidHtmlContent = htmlContent;
         return this.lastValidHtmlContent;
     }
-}
-
-function isARMv6M(arch: number, partNo: number) {
-    // Cortex-M0:  0xc, 0xc20
-    // Cortex-M0+: 0xc, 0xc60
-    // Cortex-M1:  0xc, 0xc21
-    return arch === 0xc && (partNo & 0xf00) === 0xc00;
-}
-
-function isARMv7M(arch: number, partNo: number) {
-    // Cortex-M3: 0xf, 0xc23
-    // Cortex-M4: 0xf, 0xc24
-    // Cortex-M7: 0xf, 0xc27
-    return arch === 0xf && (partNo & 0xf00) === 0xc00;
-}
-
-function isARMv8M(arch: number, partNo: number) {
-    // Cortex-M23:    0xc, 0xd20 (incl. Realtek M200)
-    // Cortex-M33:    0xf, 0xd21 (incl. Realtek M300)
-    // Cortex-M35P:   0xf, 0xd31
-    // Cortex-M55:    0xf, 0xd22
-    // Cortex-M85:    0xf, 0xd23
-    // Below derived from https://sourceforge.net/p/openocd/code/ci/master/tree/src/target/cortex_m.h
-    // Cortex-M52:    0xf, 0xd24
-    // Star-MC1:      0xf, 0x132
-    // Infineon SLX2: 0xf, 0xdb0
-    return arch in [0xc, 0xf] && (partNo & 0xf00) in [0xd00, 0x100];
 }
 
 function pointerTo(expr: string): string {

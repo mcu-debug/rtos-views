@@ -72,6 +72,8 @@ export class ShouldRetry extends Error {
     }
 }
 
+export type Architecture = null | 'armv6m' | 'armv7m' | 'armv8m' | 'armv7r'; // or ARMv8-R in 32-bit mode
+
 export abstract class RTOSBase {
     public static disableStackPeaks = false;
     public progStatus: 'started' | 'stopped' | 'running' | 'exited';
@@ -80,6 +82,8 @@ export abstract class RTOSBase {
     protected exprValues: Map<string, RTOSVarHelper> = new Map<string, RTOSVarHelper>();
     protected failedWhy: any; // For debug
     protected uiElementState: Map<string, string> = new Map<string, string>;
+    protected registerNames: string[] | undefined;
+    protected armCPUID: RTOSVarHelperMaybe;
 
     protected constructor(public session: vscode.DebugSession, public readonly name: string) {
         this.status = 'none';
@@ -190,7 +194,55 @@ export abstract class RTOSBase {
         }
     }
 
-    protected async getRegisterNamesIfEmpty(registerNames: string[] | undefined, useFrameId: number): Promise<string[]> {
+    protected async detectArchitectureIfEmpty(
+        architecture: Architecture | undefined,
+        frameId: number
+    ): Promise<Architecture> {
+        if (architecture !== undefined) {
+            return architecture;
+        }
+        return this.detectArchitecture(frameId);
+    }
+
+    private async detectArchitecture(frameId: number): Promise<Architecture> {
+        this.registerNames = await this.getRegisterNamesIfEmpty(this.registerNames, frameId);
+        if (this.registerNames.some((r) => r.toLowerCase() === 'xpsr')) {
+            // ARM Cortex-M
+            const ARM_CPUID_EXPR = '*(unsigned int *)0xe000ed00';
+            this.armCPUID = await this.getVarIfEmpty(this.armCPUID, frameId, ARM_CPUID_EXPR, true);
+            if (this.armCPUID) {
+                const cpuid = parseInt(this.armCPUID.value || '') || 0;
+                const implementer = (cpuid >> 24) & 0xff;
+                const arch = (cpuid >> 16) & 0xf;
+                const partNo = (cpuid >> 4) & 0xfff;
+                if (!(implementer in [0x00, 0xff])) {
+                    if (isARMv6M(arch, partNo)) {
+                        return 'armv6m';
+                    } else if (isARMv7M(arch, partNo)) {
+                        return 'armv7m';
+                    } else if (isARMv8M(arch, partNo)) {
+                        return 'armv8m';
+                    }
+                }
+            }
+        } else if (this.registerNames.some((r) => r.toLowerCase() === 'cpsr')) {
+            // ARM Cortex-R
+
+            // Could also be Cortex-A, but:
+            // * architecture detection is only used by MPU support.
+            // * FreeRTOS on Cortex-A doesn't support the FreeRTOS-MPU API.
+            // * Cortex-A doesn't even have an MPU, it has an MMU.
+            //
+            // If architecture detection is ever used outside of MPU support and
+            // it becomes necessary to detect Cortex-A, this will have to be
+            // made more clever.
+            return 'armv7r';
+        }
+
+        return null;
+    }
+
+    private async getRegisterNamesIfEmpty(registerNames: string[] | undefined, useFrameId: number): Promise<string[]> {
         if (registerNames !== undefined) {
             return registerNames;
         }
@@ -860,4 +912,31 @@ export function toStringDecHexOctBin(val: number /* should be an integer */): st
     }
     ret += `\nbin: ${tmp}`;
     return ret;
+}
+
+function isARMv6M(arch: number, partNo: number) {
+    // Cortex-M0:  0xc, 0xc20
+    // Cortex-M0+: 0xc, 0xc60
+    // Cortex-M1:  0xc, 0xc21
+    return arch === 0xc && (partNo & 0xf00) === 0xc00;
+}
+
+function isARMv7M(arch: number, partNo: number) {
+    // Cortex-M3: 0xf, 0xc23
+    // Cortex-M4: 0xf, 0xc24
+    // Cortex-M7: 0xf, 0xc27
+    return arch === 0xf && (partNo & 0xf00) === 0xc00;
+}
+
+function isARMv8M(arch: number, partNo: number) {
+    // Cortex-M23:    0xc, 0xd20 (incl. Realtek M200)
+    // Cortex-M33:    0xf, 0xd21 (incl. Realtek M300)
+    // Cortex-M35P:   0xf, 0xd31
+    // Cortex-M55:    0xf, 0xd22
+    // Cortex-M85:    0xf, 0xd23
+    // Below derived from https://sourceforge.net/p/openocd/code/ci/master/tree/src/target/cortex_m.h
+    // Cortex-M52:    0xf, 0xd24
+    // Star-MC1:      0xf, 0x132
+    // Infineon SLX2: 0xf, 0xdb0
+    return arch in [0xc, 0xf] && (partNo & 0xf00) in [0xd00, 0x100];
 }
