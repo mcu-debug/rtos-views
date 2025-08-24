@@ -800,7 +800,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         data: RTOSCommon.RTOSDisplayInfo[],
         kind: string,
     ): RTOSCommon.HtmlInfo {
-        if (this.xQueueRegistry && data.length === 0) {
+        if (data.length === 0) {
             return {
                 html: /*html*/ `<div>
                     No ${kind} found in registry.<br><br>
@@ -847,15 +847,22 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         }
 
         const htmlThreads = this.getHTMLThreads(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
-        const htmlQueues = this.getHTMLQueues(FreeRTOSQueues, this.queueInfo, 'queues');
-        const htmlSemaphores = this.getHTMLQueues(FreeRTOSSemaphores, this.semaphoreInfo, 'semaphores or mutexes');
-        const htmlRTOSPanels = this.getHTMLPanels(
-            [
-                {   title: `THREADS
-                    <vscode-badge appearance="secondary">
-                    ${this.finalThreads.length}
-                    </vscode-badge>`
-                },
+
+        const tabs = [
+            {   title: `THREADS
+                <vscode-badge appearance="secondary">
+                ${this.finalThreads.length}
+                </vscode-badge>`
+            },
+        ];
+        const views = [
+            { content: htmlThreads.html },
+        ];
+
+        if (this.xQueueRegistry) {
+            const htmlQueues = this.getHTMLQueues(FreeRTOSQueues, this.queueInfo, 'queues');
+            const htmlSemaphores = this.getHTMLQueues(FreeRTOSSemaphores, this.semaphoreInfo, 'semaphores or mutexes');
+            tabs.push(...[
                 {   title: `QUEUES
                     <vscode-badge appearance="secondary">
                     ${this.queueInfo.length}
@@ -866,18 +873,22 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     ${this.semaphoreInfo.length}
                     </vscode-badge>`
                 },
-            ],
-            [
-                { content: htmlThreads.html },
+            ]);
+            views.push(...[
                 { content: htmlQueues.html },
                 { content: htmlSemaphores.html },
-            ],
+            ]);
+        }
+
+        const htmlRTOSPanels = this.getHTMLPanels(
+            tabs,
+            views,
             [   { name: 'id', value: 'rtos-panels' },
                 { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
                 { name: 'debug-session-id', value: this.session.id },
             ],
             true);
-             
+
         htmlContent.html = `${msg}\n${htmlRTOSPanels}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
         htmlContent.css = htmlThreads.css;
 
