@@ -358,8 +358,8 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
     protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null) {
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: 0,
-            stackTop: 0,
         };
+        stackInfo.stackTop = 0;
 
         if (thInfo === null) {
             return stackInfo;

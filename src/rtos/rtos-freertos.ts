@@ -148,6 +148,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
     private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
+    private xSecureContext: RTOSCommon.RTOSVarHelperMaybe;
+    private architecture: RTOSCommon.Architecture | undefined;
 
     private stale = true;
     private curThreadInfo = 0; // address (from pxCurrentTCB) of status (when multicore)
@@ -221,6 +223,9 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 );
                 this.ulTotalRunTime = await this.getVarIfEmpty(this.ulTotalRunTime, useFrameId, 'ulTotalRunTime', true);
                 this.xQueueRegistry = await this.getVarIfEmpty(this.xQueueRegistry, useFrameId, 'xQueueRegistry', true);
+                this.xSecureContext = await this.getVarIfEmpty(this.xSecureContext, useFrameId, 'xSecureContext', true);
+
+                this.architecture = await this.detectArchitectureIfEmpty(this.architecture, useFrameId);
 
                 this.status = 'initialized';
             }
@@ -639,7 +644,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 (await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId)) || '';
                             const match = tmpThName.match(/"([^*]*)"$/);
                             const thName = match ? match[1] : tmpThName;
-                            const stackInfo = await this.getStackInfo(thInfo, 0xA5);
+                            const stackInfo = await this.getStackInfo(thInfo, 0xA5, frameId);
                             // This is the order we want stuff in
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
                             const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -687,7 +692,10 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 }
                             }
                             mySetter(DisplayFields.StackStart, RTOSCommon.hexFormat(stackInfo.stackStart));
-                            mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
+                            mySetter(
+                                DisplayFields.StackTop,
+                                stackInfo.stackTop ? RTOSCommon.hexFormat(stackInfo.stackTop) : '0x????????'
+                            );
                             mySetter(
                                 DisplayFields.StackEnd,
                                 stackInfo.stackEnd ? RTOSCommon.hexFormat(stackInfo.stackEnd) : '0x????????'
@@ -741,7 +749,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number, frameId: number) {
         const pxStack = thInfo['pxStack']?.val;
         const pxTopOfStack = thInfo['pxTopOfStack']?.val;
         const pxEndOfStack = thInfo['pxEndOfStack']?.val;
@@ -749,10 +757,14 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)
         };
-        const xMPUSettings =
-            'xMPUSettings' in thInfo && await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings') || {};
-        const contextOnStack = !('ulContext' in xMPUSettings);
-        const stackDelta = contextOnStack ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
+        const mpuStackTop = await this.mpuGetStackTop(thInfo, frameId);
+        if (mpuStackTop === null) {
+            stackInfo.stackTop = undefined;
+        } else if (mpuStackTop !== undefined) {
+            stackInfo.stackTop = mpuStackTop;
+        }
+
+        const stackDelta = stackInfo.stackTop !== undefined ? Math.abs(stackInfo.stackTop - stackInfo.stackStart) : undefined;
         if (stackDelta !== undefined) {
             if (this.stackIncrements < 0) {
                 stackInfo.stackFree = stackDelta;
@@ -797,6 +809,128 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             }
         }
         return stackInfo;
+    }
+
+    // returns:
+    // * number: a stack pointer read from the task's MPU context, to use instead of pxTopOfStack
+    // * undefined: no MPU context was found (meaning pxTopOfStack can be used for deltas)
+    // * null: MPU context was found, but could not be interpreted (unsupported architecture, unexpected size, etc.)
+    private async mpuGetStackTop(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        frameId: number
+    ): Promise<number | null | undefined> {
+        if (!('xMPUSettings' in thInfo)) {
+            return undefined;
+        }
+        const xMPUSettings = (await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings')) || {};
+
+        // non-privileged tasks use a separate system call stack, and back up
+        // their task SP. Use that backup if it's present and non-NULL.
+        if ('xSystemCallStackInfo' in xMPUSettings) {
+            const xSystemCallStackInfo =
+                (await this.getVarChildrenObj(xMPUSettings['xSystemCallStackInfo'].ref, 'xSystemCallStackInfo')) || {};
+
+            const pulTaskStack = xSystemCallStackInfo['pulTaskStack'] ?? xSystemCallStackInfo['pulTaskStackPointer'];
+            if (pulTaskStack?.val) {
+                const taskSP = parseInt(pulTaskStack.val);
+                if (taskSP !== 0) {
+                    return taskSP;
+                }
+            }
+        }
+
+        if (!('ulContext' in xMPUSettings)) {
+            return undefined;
+        }
+        const ulContext = Object.values(
+            (await this.getVarChildrenObj(xMPUSettings['ulContext'].ref, 'ulContext')) || {}
+        );
+
+        if (this.architecture) {
+            if (this.architecture.match(/^arm/)) {
+                return await this.mpuGetARMStackTop(thInfo, xMPUSettings, ulContext, frameId);
+            }
+            // Future architecture support goes here
+        }
+
+        // Currently unsupported architecture
+        return null;
+    }
+
+    private async mpuGetARMStackTop(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        xMPUSettings: RTOSCommon.RTOSStrToValueMap,
+        ulContext: RTOSCommon.VarObjVal[],
+        frameId: number
+    ): Promise<number | null> {
+        const MINIMUM_CONTEXT_SIZE = 16 + 1; // r0-r15, plus xPSR or CPSR
+        const FPU_CONTEXT_SIZE = 32 + 1; // s0-s31 or d0-d15, plus FPSCR
+        // Any context at least this big is assumed to start with FPU context.
+        const CONTEXT_SIZE_FPU_THRESHOLD = MINIMUM_CONTEXT_SIZE + FPU_CONTEXT_SIZE;
+
+        let spIndex: number;
+        switch (this.architecture) {
+            case 'armv6m':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CM0/portmacro.h
+                spIndex = 16;
+                break;
+            case 'armv7m':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CM[34]_MPU/portmacro.h
+                spIndex = 10;
+                break;
+            case 'armv8m':
+                // source: FreeRTOS-Kernel:portable/ARMv8M/non_secure/portmacrocommon.h
+                spIndex = 16 + Number(!!this.xSecureContext);
+                break;
+            case 'armv7r':
+                // source: FreeRTOS-Kernel:portable/GCC/ARM_CRx_MPU/portmacro_asm.h
+                spIndex = 14;
+                break;
+            default:
+                return null;
+        }
+
+        const contextSize = this.architecture.endsWith('m')
+            ? await this.mpuContextSizeCortexM(thInfo, xMPUSettings, frameId)
+            : this.mpuContextSizeCortexR(ulContext);
+        if (contextSize < MINIMUM_CONTEXT_SIZE) {
+            // currently running task, can't introspect stale context
+            // without knowing what size it was.
+            // See also: https://github.com/mcu-debug/rtos-views/issues/28
+            return null;
+        }
+        if (contextSize >= CONTEXT_SIZE_FPU_THRESHOLD) {
+            spIndex += FPU_CONTEXT_SIZE;
+        }
+
+        if (!ulContext[spIndex]?.val) {
+            return null;
+        }
+        return parseInt(ulContext[spIndex].val);
+    }
+
+    // Returns 0 if the context size could not be determined.
+    private async mpuContextSizeCortexM(
+        thInfo: RTOSCommon.RTOSStrToValueMap,
+        xMPUSettings: RTOSCommon.RTOSStrToValueMap,
+        frameId: number
+    ): Promise<number> {
+        // Decided at runtime on a task-by-task basis from EXC_RETURN & 0x20
+
+        if (!thInfo['pxTopOfStack']?.val) {
+            return 0;
+        }
+        const pxTopOfStack = thInfo['pxTopOfStack'].val;
+        const ulContextAddr = await this.getExprVal(pointerTo(xMPUSettings['ulContext'].exp as string), frameId);
+        if (!ulContextAddr) {
+            return 0;
+        }
+        return Math.abs(parseInt(pxTopOfStack) - parseInt(ulContextAddr)) / 4;
+    }
+
+    private mpuContextSizeCortexR(ulContext: RTOSCommon.VarObjVal[]): number {
+        // Determined at compile-time by configENABLE_FPU == 1
+        return ulContext.length;
     }
 
     public lastValidHtmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -878,4 +1012,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         this.lastValidHtmlContent = htmlContent;
         return this.lastValidHtmlContent;
     }
+}
+
+function pointerTo(expr: string): string {
+    return `&(${expr})`;
 }
