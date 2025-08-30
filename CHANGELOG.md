@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.0.10 - Aug 30, 2025
+
+-   PR#61: FreeRTOS: Show vQueueAddToRegistry() hint only for empty queues
+-   PR#68: Read stackTop from FreeRTOS MPU context block. This is a major contribution by @malsyned (thanks).
+
 ## 0.0.10-pre2 - Apr 12, 2025
 
 -   PR#44: Add support for SMP on FreeRTOS
