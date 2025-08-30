@@ -279,11 +279,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     #define ${strong('configQUEUE_REGISTRY_SIZE')}                 10 /* 0: no queue registry; >0: queue registry size */<br>
                     `;
                 }
-                if (this.queueInfo.length === 0 || this.semaphoreInfo.length === 0) {
-                    ret += /*html*/ `<br>Missing Queue/Mutex/Semaphore info..:<br>
-                    Register queues/semaphores/mutexes of interest using ${strong('vQueueAddToRegistry()')}<br>
-                    `;
-                }
                 if (ret) {
                     ret +=
                         '<br>Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
@@ -937,9 +932,20 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     public getHTMLQueues(
         displayColumns: { [key: string]: RTOSCommon.DisplayColumnItem },
         data: RTOSCommon.RTOSDisplayInfo[],
+        kind: string,
     ): RTOSCommon.HtmlInfo {
+        if (data.length === 0) {
+            return {
+                html: /*html*/ `<div>
+                    No ${kind} found in registry.<br><br>
+                    Register ${kind} of interest using <strong>vQueueAddToRegistry()</strong>.
+                    </div>`,
+                css: ''
+            };
+        }
         return this.getHTMLTable(Object.keys(displayColumns), displayColumns, data, (_) => '');
     }
+
     public getHTML(): RTOSCommon.HtmlInfo {
         const htmlContent: RTOSCommon.HtmlInfo = { html: '', css: '' };
         // WARNING: This stuff is super fragile. Once we know how this works, then we should refactor this
@@ -975,15 +981,22 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         }
 
         const htmlThreads = this.getHTMLThreads(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
-        const htmlQueues = this.getHTMLQueues(FreeRTOSQueues, this.queueInfo);
-        const htmlSemaphores = this.getHTMLQueues(FreeRTOSSemaphores, this.semaphoreInfo);
-        const htmlRTOSPanels = this.getHTMLPanels(
-            [
-                {   title: `THREADS
-                    <vscode-badge appearance="secondary">
-                    ${this.finalThreads.length}
-                    </vscode-badge>`
-                },
+
+        const tabs = [
+            {   title: `THREADS
+                <vscode-badge appearance="secondary">
+                ${this.finalThreads.length}
+                </vscode-badge>`
+            },
+        ];
+        const views = [
+            { content: htmlThreads.html },
+        ];
+
+        if (this.xQueueRegistry) {
+            const htmlQueues = this.getHTMLQueues(FreeRTOSQueues, this.queueInfo, 'queues');
+            const htmlSemaphores = this.getHTMLQueues(FreeRTOSSemaphores, this.semaphoreInfo, 'semaphores or mutexes');
+            tabs.push(...[
                 {   title: `QUEUES
                     <vscode-badge appearance="secondary">
                     ${this.queueInfo.length}
@@ -994,18 +1007,22 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     ${this.semaphoreInfo.length}
                     </vscode-badge>`
                 },
-            ],
-            [
-                { content: htmlThreads.html },
+            ]);
+            views.push(...[
                 { content: htmlQueues.html },
                 { content: htmlSemaphores.html },
-            ],
+            ]);
+        }
+
+        const htmlRTOSPanels = this.getHTMLPanels(
+            tabs,
+            views,
             [   { name: 'id', value: 'rtos-panels' },
                 { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
                 { name: 'debug-session-id', value: this.session.id },
             ],
             true);
-             
+
         htmlContent.html = `${msg}\n${htmlRTOSPanels}\n<p>${this.timeInfo}</p>\n${this.helpHtml}\n`;
         htmlContent.css = htmlThreads.css;
 
