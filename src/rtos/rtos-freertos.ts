@@ -147,7 +147,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     private xTasksWaitingTermination: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTime: RTOSCommon.RTOSVarHelperMaybe;
     private ulTotalRunTimeVal = 0;
-    private xQueueRegistry : RTOSCommon.RTOSVarHelperMaybe;
+    private xQueueRegistry: RTOSCommon.RTOSVarHelperMaybe;
     private xSecureContext: RTOSCommon.RTOSVarHelperMaybe;
     private architecture: RTOSCommon.Architecture | undefined;
 
@@ -486,10 +486,17 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     console.log('');
 
                     const tmpQueueName = obj['pcQueueName']?.val;
-                    const match = tmpQueueName.match(/"([^*]*)"$/);
+                    const match = (tmpQueueName || '').match(/"([^*]*)"$/);
                     const queueName = match ? match[1] : tmpQueueName;
+                    if (!queueName || (tmpQueueName === '0x0') || tmpQueueName.startsWith('0x0 ')) {
+                        // empty slot in the registry
+                        resolve();
+                        return;
+                    }
 
-                    if (!queueName || queueName === '0x0') {
+                    const tmpQueueAddress = obj['xHandle']?.val;
+                    const queueAddress = parseInt(tmpQueueAddress || '0');
+                    if (queueAddress === 0) {
                         // empty slot in the registry
                         resolve();
                         return;
@@ -503,7 +510,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                         display[QueueFields[x]] = { text, value };
                     };
                     mySetter(QueueFields.Name, queueName);
-                    const queueAddress = parseInt(obj['xHandle']?.val);
                     mySetter(QueueFields.Address, RTOSCommon.hexFormat(queueAddress));
 
                     const queue = await this.getVarChildrenObj(obj['xHandle']?.ref, '') || {};
@@ -511,7 +517,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     const xTasksWaitingToSend = await this.getVarChildrenObj(queue['xTasksWaitingToSend']?.ref, '') || {};
                     const xTasksWaitingToReceive = await this.getVarChildrenObj(queue['xTasksWaitingToReceive']?.ref, '') || {};
                     const waitingToSend = await this.getQueueWaitInfo(xTasksWaitingToSend);
-                    const waitingToReceive =await this.getQueueWaitInfo(xTasksWaitingToReceive);
+                    const waitingToReceive = await this.getQueueWaitInfo(xTasksWaitingToReceive);
                     const pcHead = parseInt(queue['pcHead']?.val);
                     const pcWriteTo = parseInt(queue['pcWriteTo']?.val);
                     let queueType: number;
@@ -521,7 +527,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                     mySetter(QueueFields.Head, RTOSCommon.hexFormat(pcHead));
                     mySetter(QueueFields.WriteTo, RTOSCommon.hexFormat(pcWriteTo));
                     mySetter(QueueFields.WaitReceiveCnt, waitingToReceive.waitCount.toString(), { threads: waitingToReceive.waitingList });
-                    mySetter(QueueFields.WaitSendCnt, waitingToSend.waitCount.toString(),{ threads: waitingToSend.waitingList });
+                    mySetter(QueueFields.WaitSendCnt, waitingToSend.waitCount.toString(), { threads: waitingToSend.waitingList });
                     if (queue['uxQueueNumber']?.val) {
                         mySetter(QueueFields.QNumber, queue['uxQueueNumber']?.val);
                     } else {
@@ -634,7 +640,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 `((TCB_t*)${RTOSCommon.hexFormat(threadId)})`,
                                 frameId
                             );
-                            let threadRunning : boolean;
+                            let threadRunning: boolean;
                             const tmpThName =
                                 (await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId)) || '';
                             const match = tmpThName.match(/"([^*]*)"$/);
@@ -983,7 +989,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         const htmlThreads = this.getHTMLThreads(DisplayFieldNames, FreeRTOSItems, this.finalThreads, '');
 
         const tabs = [
-            {   title: `THREADS
+            {
+                title: `THREADS
                 <vscode-badge appearance="secondary">
                 ${this.finalThreads.length}
                 </vscode-badge>`
@@ -997,12 +1004,14 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             const htmlQueues = this.getHTMLQueues(FreeRTOSQueues, this.queueInfo, 'queues');
             const htmlSemaphores = this.getHTMLQueues(FreeRTOSSemaphores, this.semaphoreInfo, 'semaphores or mutexes');
             tabs.push(...[
-                {   title: `QUEUES
+                {
+                    title: `QUEUES
                     <vscode-badge appearance="secondary">
                     ${this.queueInfo.length}
                     </vscode-badge>`
                 },
-                {   title: `MUX/SEMS
+                {
+                    title: `MUX/SEMS
                     <vscode-badge appearance="secondary">
                     ${this.semaphoreInfo.length}
                     </vscode-badge>`
@@ -1017,9 +1026,9 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         const htmlRTOSPanels = this.getHTMLPanels(
             tabs,
             views,
-            [   { name: 'id', value: 'rtos-panels' },
-                { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
-                { name: 'debug-session-id', value: this.session.id },
+            [{ name: 'id', value: 'rtos-panels' },
+            { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
+            { name: 'debug-session-id', value: this.session.id },
             ],
             true);
 

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.11 - Sep 5, 2025
+
+-   Issue#71: XRTOS tab - task loading on FreeRtos leads to infinite loop
+
 ## 0.0.10 - Aug 30, 2025
 
 -   PR#61: FreeRTOS: Show vQueueAddToRegistry() hint only for empty queues
