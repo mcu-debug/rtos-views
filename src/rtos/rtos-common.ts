@@ -194,6 +194,27 @@ export abstract class RTOSBase {
         }
     }
 
+    protected async getStackPointerRegVal(frameId: number): Promise<number | undefined> {
+        try {
+            // Cortex-A/R uses banked stack registers for IRQs, etc.
+            const usrVal = parseInt(await this.evalForVarValue(frameId, '$r13_usrr') || '');
+            if (usrVal) {
+                return usrVal;
+            }
+
+            // Both GDB and LLDB provide a generic stack pointer alias named $sp
+            // on platforms that don't already define a register named "sp". For
+            // other debuggers, this method may fail to find the stack pointer
+            // register.
+            const val = parseInt(await this.evalForVarValue(frameId, '$sp') || '');
+            if (val) {
+                return val;
+            }
+        } catch (e) {
+        }
+        return undefined;
+    }
+
     protected async detectArchitectureIfEmpty(
         architecture: Architecture | undefined,
         frameId: number
