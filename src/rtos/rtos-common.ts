@@ -200,6 +200,8 @@ export abstract class RTOSBase {
             'psp',
             // Cortex-A/R uses r13_usr for task stacks, r13_irq, r13_fiq, r13_svc, etc. for exceptions
             'r13_usr',
+            // ...but OpenOCD calls it sp_usr, not r13_usr
+            'sp_usr',
             // Both GDB and LLDB provide a generic stack pointer alias named $sp
             // on platforms that don't already define a register named "sp". For
             // other debuggers, this method may fail to find the stack pointer
