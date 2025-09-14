@@ -124,7 +124,9 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected createHmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    protected createHtmlHelp(th: RTOSCommon.RTOSThreadInfo, thInfo: RTOSCommon.RTOSStrToValueMap) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         function strong(text: string) {
             return `<strong>${text}</strong>`;
         }
@@ -132,14 +134,8 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
             this.helpHtml = '';
             try {
                 let ret: string = '';
-
-                if (!thInfo['NamePtr']?.val) {
-                    ret += `Thread name missing: Enable macro ${strong('OS_CFG_DBG_EN')}<br><br>`;
-                }
-                if (!th.stackInfo.stackSize) {
-                    ret += `Stack Size & Peak missing: Enable macro ${strong('OS_CFG_DBG_EN')}<br><br>`;
-                }
-
+                // Once the user has enabled the OS_CFG_DBG_EN macro, all debug variables are valid.
+                // For now, we don't need to give any hints.
                 if (ret) {
                     ret +=
                         'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
@@ -312,7 +308,7 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
                                 running: threadRunning
                             };
                             this.foundThreads.push(thread);
-                            this.createHmlHelp(thread, curTaskObj);
+                            this.createHtmlHelp(thread, curTaskObj);
 
                             thAddress = parseInt(curTaskObj['DbgNextPtr']?.val);
                             if (0 !== thAddress) {
