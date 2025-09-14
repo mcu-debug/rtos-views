@@ -5,6 +5,7 @@ import * as path from 'path';
 import * as RTOSCommon from './rtos-common';
 import { RTOSFreeRTOS } from './rtos-freertos';
 import { RTOSUCOS2 } from './rtos-ucosii';
+import { RTOSUCOS3 } from './rtos-ucosiii';
 import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
 import { RTOSZEPHYR } from './rtos-zephyr';
@@ -35,6 +36,8 @@ const RTOS_TYPES = {
     FreeRTOS: RTOSFreeRTOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'uC/OS-II': RTOSUCOS2,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    'uC/OS-III': RTOSUCOS3,
     embOS: RTOSEmbOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     ChibiOS: RTOSChibiOS,
