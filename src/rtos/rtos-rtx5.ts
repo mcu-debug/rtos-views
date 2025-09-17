@@ -1,3 +1,10 @@
+/********************************************************************************
+ * Copyright (C) 2025 Arm Limited and others.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the MIT License as outlined in the LICENSE File
+ ********************************************************************************/
+
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode';
 import { DebugProtocol } from '@vscode/debugprotocol';
