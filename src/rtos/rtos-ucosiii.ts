@@ -12,7 +12,8 @@ enum DisplayFields {
     Status,
     Priority,
     StackPercent,
-    StackPeakPercent
+    StackPeakPercent,
+    Runtime
 }
 
 const RTOSUCOS3Items: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
@@ -53,6 +54,12 @@ RTOSUCOS3Items[DisplayFields[DisplayFields.StackPeakPercent]] = {
     headerRow2: '% (Peak B / Size B)',
     colType: RTOSCommon.ColTypeEnum.colTypePercentage
 };
+RTOSUCOS3Items[DisplayFields[DisplayFields.Runtime]] = {
+    width: 2,
+    headerRow1: '',
+    headerRow2: 'Runtime',
+    colType: RTOSCommon.ColTypeEnum.colTypeNumeric
+};
 
 const DisplayFieldNames: string[] = Object.keys(RTOSUCOS3Items);
 
@@ -72,6 +79,8 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
 
     private OSTCBCur: RTOSCommon.RTOSVarHelperMaybe;
     private OSTCBCurVal: number = 0;
+
+    private CPU_TS_TmrFreq_Hz: RTOSCommon.RTOSVarHelperMaybe;
 
     private stale: boolean = true;
     private foundThreads: RTOSCommon.RTOSThreadInfo[] = [];
@@ -110,6 +119,7 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
                 this.OSTaskCtr = await this.getVarIfEmpty(this.OSTaskCtr, useFrameId, 'OSTaskQty', false);
                 this.OSTCBList = await this.getVarIfEmpty(this.OSTCBList, useFrameId, 'OSTaskDbgListPtr', false);
                 this.OSTCBCur = await this.getVarIfEmpty(this.OSTCBCur, useFrameId, 'OSTCBCurPtr', false);
+                this.CPU_TS_TmrFreq_Hz = await this.getVarIfEmpty(this.CPU_TS_TmrFreq_Hz, useFrameId, 'CPU_TS_TmrFreq_Hz', true);
                 this.status = 'initialized';
             }
             return this;
@@ -136,9 +146,23 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
                 let ret: string = '';
                 // Once the user has enabled the OS_CFG_DBG_EN macro, all debug variables are valid.
                 // For now, we don't need to give any hints.
+
+                // To enable CPUUasge, please:
+                //  1. enable macro 'OS_CFG_TASK_PROFILE_EN'
+                //  2. enable macro 'CPU_CFG_TS_32_EN' or 'CPU_CFG_TS_64_EN'
+                //  3. call OSStatTaskCPUUsageInit() in you main task before start.
+                if (!this.CPU_TS_TmrFreq_Hz || !thInfo['CPUUsage']) {
+                    ret += `missing 'Runtime', please check:<br>`
+                        + ` 1. Enable macro ${strong('OS_CFG_TS_EN')} and ${strong('OS_CFG_TASK_PROFILE_EN')} in 'os_cfg.h'<br>`
+                        + ` 2. Enable macro ${strong('CPU_CFG_TS_32_EN')} or ${strong('CPU_CFG_TS_64_EN')} in 'cpu_cfg.h'<br>`
+                        + ` 3. Make sure ${strong('CPU_TS_TmrRd()')} have a valid implement in 'bsp_cpu.c'<br>`
+                        + ` 4. Call ${strong('OSStatTaskCPUUsageInit()')} in you main task<br>`
+                        + `<br><br>`;
+                }
+
                 if (ret) {
                     ret +=
-                        'Note: Make sure you consider the performance/resources impact for any changes to your FW.<br>\n';
+                        'Note: Make sure you consider the performance/resources impact for any changes to your firmware.<br>\n';
                     this.helpHtml =
                         '<button class="help-button">Hints to get more out of the uC/OS-III RTOS View</button>\n' +
                         `<div class="help"><p>\n${ret}\n</p></div>\n`;
@@ -300,6 +324,15 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
                                 mySetter(DisplayFields.StackPeakPercent, '----');
                             } else {
                                 mySetter(DisplayFields.StackPeakPercent, '?? %');
+                            }
+
+                            // typedef CPU_INT16U OS_CPU_USAGE;     /* CPU Usage 0..10000  <16>/32 */
+                            // OS_CPU_USAGE CPUUsage;               /* CPU Usage of task (0.00-100.00%) */
+                            if (this.CPU_TS_TmrFreq_Hz && curTaskObj['CPUUsage']?.val) {
+                                const tmp = parseInt(curTaskObj['CPUUsage']?.val) / 100;
+                                mySetter(DisplayFields.Runtime, tmp.toFixed(2).padStart(5, '0') + '%');
+                            } else {
+                                mySetter(DisplayFields.Runtime, '??.??%');
                             }
 
                             const thread: RTOSCommon.RTOSThreadInfo = {
