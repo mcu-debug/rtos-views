@@ -25,7 +25,7 @@ export const TrackedDebuggers = [
     'cortex-debug',
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
-    'mplab-core-da' // Microchip debugger
+    'mplab-core-da', // Microchip debugger
     'gdbtarget', // Eclipse-CDT-GDB debugger
 ];
 
