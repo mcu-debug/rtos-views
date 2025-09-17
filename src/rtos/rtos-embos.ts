@@ -465,8 +465,8 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: Stack,
-            stackTop: parseInt(TopOfStack),
         };
+        stackInfo.stackTop = parseInt(TopOfStack);
 
         if (EndOfStack && StackSize) {
             stackInfo.stackEnd = parseInt(EndOfStack);
