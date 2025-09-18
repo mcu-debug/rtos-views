@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- PR#76: Add support Arm:RTX5
+
 ## 0.0.11 - Sep 5, 2025
 
 -   Issue#71: XRTOS tab - task loading on FreeRtos leads to infinite loop

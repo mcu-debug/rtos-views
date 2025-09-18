@@ -32,3 +32,4 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | embOS          | @PhilippHaefele        |
 | Zephyr (beta)  | @PhilippHaefele        |
 | ChibiOS (beta) | @vrepetenko VR         |
+| RTX5           | @thorstendb-ARM        |
