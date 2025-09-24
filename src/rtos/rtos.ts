@@ -9,6 +9,7 @@ import { RTOSUCOS3 } from './rtos-ucosiii';
 import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
 import { RTOSZEPHYR } from './rtos-zephyr';
+import { RTOSThreadX } from './rtos-threadx';
 
 import {
     IDebugTracker,
@@ -25,7 +26,7 @@ export const TrackedDebuggers = [
     'cortex-debug',
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
-    'mplab-core-da' // Microchip debugger
+    'mplab-core-da', // Microchip debugger
 ];
 
 let trackerApi: IDebugTracker;
@@ -43,6 +44,8 @@ const RTOS_TYPES = {
     ChibiOS: RTOSChibiOS,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Zephyr: RTOSZEPHYR,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    ThreadX: RTOSThreadX,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
@@ -413,7 +416,7 @@ export class RTOSTracker implements DebugEventHandler {
             }
             try {
                 await this.update();
-            } catch { }
+            } catch {}
         }
     }
 
@@ -493,7 +496,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'rtos-views.rtos';
     private webviewView: vscode.WebviewView | undefined;
 
-    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) { }
+    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) {}
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
@@ -506,7 +509,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
         webviewView.webview.options = {
             // Allow scripts in the webview
             enableScripts: true,
-            localResourceRoots: [this.extensionUri]
+            localResourceRoots: [this.extensionUri],
         };
         this.webviewView.description = 'View RTOS internals';
 
