@@ -51,12 +51,46 @@ const ThreadTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
     },
 };
 
+const SemaphoreTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
+    name: {
+        width: 2,
+        headerRow1: 'Semaphore',
+        headerRow2: 'Name',
+    },
+    address: {
+        width: 2,
+        headerRow1: '',
+        headerRow2: 'Address',
+    },
+    count: {
+        width: 2,
+        headerRow1: '',
+        headerRow2: 'Count',
+        colType: RTOSCommon.ColTypeEnum.colTypeNumeric,
+    },
+    suspensions: {
+        width: 2,
+        headerRow1: 'Suspended',
+        headerRow2: 'Count',
+        colType: RTOSCommon.ColTypeEnum.colTypeNumeric,
+        colGapAfter: 1,
+    },
+    suspended: {
+        width: 4,
+        headerRow1: '',
+        headerRow2: 'Threads',
+    },
+};
+
 const ThreadTableItemNames: string[] = Object.keys(ThreadTableItems);
+const SemaphoreTableItemNames: string[] = Object.keys(SemaphoreTableItems);
 
 export class RTOSThreadX extends RTOSCommon.RTOSBase {
     private threadCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
+    private semaphoreCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
 
     private threads: RTOSCommon.RTOSThreadInfo[] = [];
+    private semaphores: RTOSCommon.RTOSDisplayInfo[] = [];
 
     constructor(public session: vscode.DebugSession) {
         super(session, 'ThreadX');
@@ -70,6 +104,13 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     this.threadCreatedCount,
                     useFrameId,
                     '_tx_thread_created_count',
+                    false
+                );
+
+                this.semaphoreCreatedCount = await this.getVarIfEmpty(
+                    this.semaphoreCreatedCount,
+                    useFrameId,
+                    '_tx_semaphore_created_count',
                     false
                 );
 
@@ -110,6 +151,23 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     console.error('RTOSThreadX.refresh() failed: ', reason);
                 }
             );
+
+            this.semaphoreCreatedCount?.getValue(frameId).then(
+                async (str) => {
+                    try {
+                        const numSemaphores = parseInt(str ?? '') || 0;
+                        await this.getSemaphoreInfo(numSemaphores, frameId);
+                        resolve();
+                    } catch (e) {
+                        resolve();
+                        console.error('RTOSThreadX.refresh() failed: ', e);
+                    }
+                },
+                (reason) => {
+                    resolve();
+                    console.error('RTOSThreadX.refresh() failed: ', reason);
+                }
+            );
         });
     }
 
@@ -118,7 +176,19 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
         const htmlThreads = this.getHTMLThreads(ThreadTableItemNames, ThreadTableItems, this.threads, '');
 
-        htmlContent.html = htmlThreads.html;
+        const htmlSemaphores = this.getHTMLTable(
+            SemaphoreTableItemNames,
+            SemaphoreTableItems,
+            this.semaphores,
+            (_) => ''
+        );
+
+        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }];
+        const views = [{ content: htmlThreads.html }, { content: htmlSemaphores.html }];
+
+        const htmlPanels = this.getHTMLPanels(tabs, views, [], true);
+
+        htmlContent.html = htmlPanels;
         htmlContent.css = htmlThreads.css;
 
         return htmlContent;
@@ -221,6 +291,61 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
             default:
                 return 'Unknown';
         }
+    }
+
+    private async getSemaphoreInfo(numSemaphores: number, frameId: number): Promise<void> {
+        const semaphores: RTOSCommon.RTOSDisplayInfo[] = [];
+
+        let address = (await this.getExprVal('_tx_semaphore_created_ptr', frameId)) ?? '';
+        let semaphore: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
+            '_tx_semaphore_created_ptr',
+            frameId
+        );
+
+        for (let i = 0; i < numSemaphores && semaphore !== undefined; i++) {
+            const name = this.stringFromCharPointer(semaphore['tx_semaphore_name']?.val);
+            const count = semaphore['tx_semaphore_count']?.val ?? '?';
+            const suspensions = semaphore['tx_semaphore_suspended_count']?.val ?? '?';
+            const addressHexString = RTOSCommon.hexFormat(parseInt(address));
+
+            const suspended = await this.getSuspendedThreads(
+                semaphore['tx_semaphore_suspension_list'],
+                parseInt(suspensions) || 0
+            );
+
+            semaphores.push({
+                display: {
+                    name: { text: name },
+                    address: { text: addressHexString },
+                    count: { text: count },
+                    suspensions: { text: suspensions },
+                    suspended: { text: suspended },
+                },
+            });
+
+            const next = semaphore['tx_semaphore_created_next'];
+            address = next?.val ?? '';
+            semaphore = (await this.getVarChildrenObj(next?.ref ?? NaN, 'next semaphore')) ?? undefined;
+        }
+
+        this.semaphores = semaphores;
+    }
+
+    private async getSuspendedThreads(threads: RTOSCommon.VarObjVal, count: number): Promise<string> {
+        const suspended: string[] = [];
+        let current: RTOSCommon.VarObjVal | undefined = threads;
+        for (let i = 0; i < count && current?.ref !== undefined; i++) {
+            const element: RTOSCommon.RTOSStrToValueMap | undefined =
+                (await this.getVarChildrenObj(current?.ref ?? NaN, '')) ?? undefined;
+            const name = element?.['tx_thread_name']?.val;
+            if (name === undefined) {
+                break;
+            }
+            suspended.push(this.stringFromCharPointer(name));
+
+            current = element?.['tx_thread_suspended_next'] ?? undefined;
+        }
+        return suspended.join(', ');
     }
 
     private stringFromCharPointer(name: string | undefined): string {
