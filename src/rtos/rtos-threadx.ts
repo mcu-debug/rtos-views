@@ -82,15 +82,48 @@ const SemaphoreTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
     },
 };
 
+const MutexTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
+    name: {
+        width: 2,
+        headerRow1: 'Mutex',
+        headerRow2: 'Name',
+    },
+    address: {
+        width: 2,
+        headerRow1: '',
+        headerRow2: 'Address',
+    },
+    owner: {
+        width: 2,
+        headerRow1: 'Owner',
+        headerRow2: 'Thread',
+    },
+    suspensions: {
+        width: 2,
+        headerRow1: 'Suspended',
+        headerRow2: 'Count',
+        colType: RTOSCommon.ColTypeEnum.colTypeNumeric,
+        colGapAfter: 1,
+    },
+    suspended: {
+        width: 4,
+        headerRow1: '',
+        headerRow2: 'Threads',
+    },
+};
+
 const ThreadTableItemNames: string[] = Object.keys(ThreadTableItems);
 const SemaphoreTableItemNames: string[] = Object.keys(SemaphoreTableItems);
+const MutexTableItemNames: string[] = Object.keys(MutexTableItems);
 
 export class RTOSThreadX extends RTOSCommon.RTOSBase {
     private threadCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
     private semaphoreCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
+    private mutexCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
 
     private threads: RTOSCommon.RTOSThreadInfo[] = [];
     private semaphores: RTOSCommon.RTOSDisplayInfo[] = [];
+    private mutexes: RTOSCommon.RTOSDisplayInfo[] = [];
 
     constructor(public session: vscode.DebugSession) {
         super(session, 'ThreadX');
@@ -111,6 +144,13 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     this.semaphoreCreatedCount,
                     useFrameId,
                     '_tx_semaphore_created_count',
+                    false
+                );
+
+                this.mutexCreatedCount = await this.getVarIfEmpty(
+                    this.mutexCreatedCount,
+                    useFrameId,
+                    '_tx_mutex_created_count',
                     false
                 );
 
@@ -168,6 +208,23 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     console.error('RTOSThreadX.refresh() failed: ', reason);
                 }
             );
+
+            this.mutexCreatedCount?.getValue(frameId).then(
+                async (str) => {
+                    try {
+                        const numMutexes = parseInt(str ?? '') || 0;
+                        await this.getMutexInfo(numMutexes, frameId);
+                        resolve();
+                    } catch (e) {
+                        resolve();
+                        console.error('RTOSThreadX.refresh() failed: ', e);
+                    }
+                },
+                (reason) => {
+                    resolve();
+                    console.error('RTOSThreadX.refresh() failed: ', reason);
+                }
+            );
         });
     }
 
@@ -183,8 +240,10 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
             (_) => ''
         );
 
-        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }];
-        const views = [{ content: htmlThreads.html }, { content: htmlSemaphores.html }];
+        const htmlMutexes = this.getHTMLTable(MutexTableItemNames, MutexTableItems, this.mutexes, (_) => '');
+
+        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }, { title: 'Mutexes' }];
+        const views = [{ content: htmlThreads.html }, { content: htmlSemaphores.html }, { content: htmlMutexes.html }];
 
         const htmlPanels = this.getHTMLPanels(tabs, views, [], true);
 
@@ -346,6 +405,46 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
             current = element?.['tx_thread_suspended_next'] ?? undefined;
         }
         return suspended.join(', ');
+    }
+
+    private async getMutexInfo(numMutexes: number, frameId: number): Promise<void> {
+        const mutexes: RTOSCommon.RTOSDisplayInfo[] = [];
+
+        let address = (await this.getExprVal('_tx_mutex_created_ptr', frameId)) ?? '';
+        let mutex: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
+            '_tx_mutex_created_ptr',
+            frameId
+        );
+
+        for (let i = 0; i < numMutexes && mutex !== undefined; i++) {
+            const name = this.stringFromCharPointer(mutex['tx_mutex_name']?.val);
+            const addressHexString = RTOSCommon.hexFormat(parseInt(address));
+            const suspensions = mutex['tx_mutex_suspended_count']?.val ?? '?';
+
+            const owner = (await this.getVarChildrenObj(mutex['tx_mutex_owner']?.ref, 'owner')) ?? undefined;
+            const ownerName = this.stringFromCharPointer(owner?.['tx_thread_name']?.val);
+
+            const suspended = await this.getSuspendedThreads(
+                mutex['tx_mutex_suspension_list'],
+                parseInt(suspensions) || 0
+            );
+
+            mutexes.push({
+                display: {
+                    name: { text: name },
+                    address: { text: addressHexString },
+                    owner: { text: ownerName },
+                    suspensions: { text: suspensions },
+                    suspended: { text: suspended },
+                },
+            });
+
+            const next = mutex['tx_mutex_created_next'];
+            address = next?.val ?? '';
+            mutex = (await this.getVarChildrenObj(next?.ref ?? NaN, 'next mutex')) ?? undefined;
+        }
+
+        this.mutexes = mutexes;
     }
 
     private stringFromCharPointer(name: string | undefined): string {
