@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.12-pre1 - Sep 17, 2025
+
+-   PR#75: Add support for uC/OS-III.
+
 ## 0.0.11 - Sep 5, 2025
 
 -   Issue#71: XRTOS tab - task loading on FreeRtos leads to infinite loop
