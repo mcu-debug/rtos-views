@@ -152,12 +152,12 @@ export class RTOSUCOS3 extends RTOSCommon.RTOSBase {
                 //  2. enable macro 'CPU_CFG_TS_32_EN' or 'CPU_CFG_TS_64_EN'
                 //  3. call OSStatTaskCPUUsageInit() in you main task before start.
                 if (!this.CPU_TS_TmrFreq_Hz || !thInfo['CPUUsage']) {
-                    ret += `missing 'Runtime', please check:<br>`
+                    ret += 'missing \'Runtime\', please check:<br>'
                         + ` 1. Enable macro ${strong('OS_CFG_TS_EN')} and ${strong('OS_CFG_TASK_PROFILE_EN')} in 'os_cfg.h'<br>`
                         + ` 2. Enable macro ${strong('CPU_CFG_TS_32_EN')} or ${strong('CPU_CFG_TS_64_EN')} in 'cpu_cfg.h'<br>`
                         + ` 3. Make sure ${strong('CPU_TS_TmrRd()')} have a valid implement in 'bsp_cpu.c'<br>`
                         + ` 4. Call ${strong('OSStatTaskCPUUsageInit()')} in you main task<br>`
-                        + `<br><br>`;
+                        + '<br><br>';
                 }
 
                 if (ret) {

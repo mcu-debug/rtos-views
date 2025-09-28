@@ -139,7 +139,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve, reject) => {
+        return new Promise<void>((resolve, _reject) => {
             if (this.progStatus !== 'stopped') {
                 resolve();
                 return;
@@ -151,7 +151,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
 
             this.foundThreads = [];
             this.kernel?.getVarChildrenObj(frameId).then(
-                async (kernel) => {
+                async (_kernel) => {
                     try {
                         if (this.threads) {
                             const threadListStart = await this.threads?.getValue(frameId);
