@@ -1,8 +1,10 @@
 # Change Log
 
-## Unreleased
+## 0.0.12-pre1 - Sep 17, 2025
 
-- PR#76: Add support Arm:RTX5
+-   PR#75: Add support for uC/OS-III.
+-   PR#77: Add support for ThreadX.
+-   PR#76: Add support Arm:RTX5
 
 ## 0.0.11 - Sep 5, 2025
 

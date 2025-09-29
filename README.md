@@ -21,6 +21,9 @@ Here is an example of a FreeRTOS view
 Here is an example of a FreeRTOS view with some information missing. We generally try to provide help to tell you what is missing and how you can change that.
 ![FreeRTOS with partial info](./images/FreeRTOS.png)
 
+Here is an example of a uC/OS-III RTOS view
+![uC/OS-III](./images/uCOS-III.png)
+
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality
 
 # Contributors and maintainers
@@ -32,4 +35,6 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | embOS          | @PhilippHaefele        |
 | Zephyr (beta)  | @PhilippHaefele        |
 | ChibiOS (beta) | @vrepetenko VR         |
+| uC/OS-III      | @github0null           |
+| ThreadX        | @raphaelmeyer          |
 | RTX5           | @thorstendb-ARM        |

@@ -112,32 +112,32 @@ threadTableItems[threadDisplayFields[threadDisplayFields.STACK_PEAK_USAGE]] = {
 
 const threadDisplayFieldNames: string[] = Object.keys(threadTableItems);
 
-const globalInfoCols = [{ columnDataKey: 'name', title: 'Name' }, { columnDataKey: 'value', title: 'Value' } ];
+const globalInfoCols = [{ columnDataKey: 'name', title: 'Name' }, { columnDataKey: 'value', title: 'Value' }];
 
 const virtualTimersCols = [{ columnDataKey: 'timer', title: 'Timer' },
-                           { columnDataKey: 'time', title: 'Time' },
-                           { columnDataKey: 'delta', title: 'Delta' },
-                           { columnDataKey: 'callback', title: 'Callback' },
-                           { columnDataKey: 'params', title: 'Parameters' },
-                           { columnDataKey: 'last', title: 'Last Deadline' },
-                           { columnDataKey: 'reload', title: 'Reload' }];
+{ columnDataKey: 'time', title: 'Time' },
+{ columnDataKey: 'delta', title: 'Delta' },
+{ columnDataKey: 'callback', title: 'Callback' },
+{ columnDataKey: 'params', title: 'Parameters' },
+{ columnDataKey: 'last', title: 'Last Deadline' },
+{ columnDataKey: 'reload', title: 'Reload' }];
 
 const statisticsCols = [{ columnDataKey: 'description', title: 'Measured Section' },
-                        { columnDataKey: 'best', title: 'Best Case' },
-                        { columnDataKey: 'worst', title: 'Worst Case' },
-                        { columnDataKey: 'counter', title: 'Iterations' },
-                        { columnDataKey: 'cumulative', title: 'Cumulative Time' } ];
+{ columnDataKey: 'best', title: 'Best Case' },
+{ columnDataKey: 'worst', title: 'Worst Case' },
+{ columnDataKey: 'counter', title: 'Iterations' },
+{ columnDataKey: 'cumulative', title: 'Cumulative Time' }];
 
-const traceCols = [{ columnDataKey: 'event', title: 'Event' },
-                   { columnDataKey: 'eventType', title: 'Type' },
-                   { columnDataKey: 'time', title: 'System Time' },
-                   { columnDataKey: 'rtstamp', title: 'RT Stamp' },
-                   { columnDataKey: 'from', title: 'From' },
-                   { columnDataKey: 'fromName', title: 'Name' },
-                   { columnDataKey: 'state', title: 'State' },
-                   { columnDataKey: 'obj_msg', title: 'Obj/Msg' },
-                   { columnDataKey: 'to', title: 'To' },
-                   { columnDataKey: 'toName', title: 'Name' }];
+const _traceCols = [{ columnDataKey: 'event', title: 'Event' },
+{ columnDataKey: 'eventType', title: 'Type' },
+{ columnDataKey: 'time', title: 'System Time' },
+{ columnDataKey: 'rtstamp', title: 'RT Stamp' },
+{ columnDataKey: 'from', title: 'From' },
+{ columnDataKey: 'fromName', title: 'Name' },
+{ columnDataKey: 'state', title: 'State' },
+{ columnDataKey: 'obj_msg', title: 'Obj/Msg' },
+{ columnDataKey: 'to', title: 'To' },
+{ columnDataKey: 'toName', title: 'Name' }];
 
 enum chTraceEventTypes {
     READY = 'Ready',
@@ -559,7 +559,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             this.globalInfo.push({
                 name: chMessages.PANIC_MESSAGE,
                 value: getCString(debug['panic_msg'].val,
-                chMessages.NONE)
+                    chMessages.NONE)
             });
         } else {
             this.globalInfo.push({ name: chMessages.PANIC_MESSAGE, value: chMessages.NOT_ENABLED });
@@ -578,7 +578,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             this.globalInfo.push({
                 name: chMessages.LOCK_LEVEL,
                 value: getNumber(debug['lock_cnt'].val) === 0
-                ? 'not within lock' : 'within lock - ' + debug['lock_cnt']?.val
+                    ? 'not within lock' : 'within lock - ' + debug['lock_cnt']?.val
             });
         } else {
             this.globalInfo.push({ name: chMessages.LOCK_LEVEL, value: chMessages.NOT_ENABLED });
@@ -666,7 +666,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         }
     }
 
-    protected async getStackInfo(threadAddr:number, threadInfo: RTOSCommon.RTOSStrToValueMap, frameId: number) {
+    protected async getStackInfo(threadAddr: number, threadInfo: RTOSCommon.RTOSStrToValueMap, frameId: number) {
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: 0
@@ -855,7 +855,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                     state: '',
                                     rtstamp: event['rtstamp']?.val,
                                     time: event['time']?.val,
-                                    from:  RTOSCommon.hexFormat(tp),
+                                    from: RTOSCommon.hexFormat(tp),
                                     fromName: this.threads.get(tp),
                                     obj_msg: RTOSCommon.hexFormat(parseInt(rdy['msg']?.val)),
                                     to: '',
@@ -863,7 +863,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                 });
                                 break;
                             case 2:
-                                const sw =  await this.getVarChildrenObj(u['sw']?.ref, 'sw') || {};
+                                const sw = await this.getVarChildrenObj(u['sw']?.ref, 'sw') || {};
                                 const ntp = parseInt(sw['ntp']?.val);
                                 this.trace.push({
                                     event: n,
@@ -880,7 +880,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                 break;
                             case 3:
                             case 4:
-                                const isr =  await this.getVarChildrenObj(u['isr']?.ref, 'isr') || {};
+                                const isr = await this.getVarChildrenObj(u['isr']?.ref, 'isr') || {};
                                 this.trace.push({
                                     event: n,
                                     eventType:
@@ -896,7 +896,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                 });
                                 break;
                             case 5:
-                                const halt =  await this.getVarChildrenObj(u['halt']?.ref, 'halt') || {};
+                                const halt = await this.getVarChildrenObj(u['halt']?.ref, 'halt') || {};
                                 this.trace.push({
                                     event: n,
                                     eventType: chTraceEventTypes.HALT,
@@ -911,7 +911,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
                                 });
                                 break;
                             case 6:
-                                const user =  await this.getVarChildrenObj(u['user']?.ref, 'user') || {};
+                                const user = await this.getVarChildrenObj(u['user']?.ref, 'user') || {};
                                 this.trace.push({
                                     event: n,
                                     eventType: chTraceEventTypes.USER,
@@ -957,7 +957,7 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
             return htmlContent;
         } else if (this.finalThreads.length === 0) {
             htmlContent.html =
-                            `<p>No ${this.name} threads detected, perhaps RTOS not yet initialized or
+                `<p>No ${this.name} threads detected, perhaps RTOS not yet initialized or
                             tasks yet to be created!</p>\n`;
             return htmlContent;
         }
@@ -967,40 +967,42 @@ export class RTOSChibiOS extends RTOSCommon.RTOSBase {
         const htmlThreads = this.getHTMLThreads(threadDisplayFieldNames, threadTableItems, this.finalThreads, '');
 
         const htmlGlobalInfo = this.getHTMLDataGrid(globalInfoCols,
-                                                    this.globalInfo,
-                                                    [{ name: 'id', value: 'global' },
-                                                     { name: 'aria-label', value: 'Global Variables' },
-                                                     { name: 'grid-template-columns', value: '30% 70%' }]);
+            this.globalInfo,
+            [{ name: 'id', value: 'global' },
+            { name: 'aria-label', value: 'Global Variables' },
+            { name: 'grid-template-columns', value: '30% 70%' }]);
 
         const htmlVirtualTimersInfo = this.getHTMLDataGrid(virtualTimersCols,
-                                                           this.virtualTimersInfo,
-                                                           [{ name: 'id', value: 'timers' },
-                                                            { name: 'aria-label', value: 'Virtual Timers' }]);
+            this.virtualTimersInfo,
+            [{ name: 'id', value: 'timers' },
+            { name: 'aria-label', value: 'Virtual Timers' }]);
 
         const htmlStatistics = this.getHTMLDataGrid(statisticsCols,
-                                                    this.statistics,
-                                                    [{ name: 'id', value: 'statistics' },
-                                                     { name: 'aria-label', value: 'Statistics' }]);
+            this.statistics,
+            [{ name: 'id', value: 'statistics' },
+            { name: 'aria-label', value: 'Statistics' }]);
 
-        const htmlRTOSPanels = this.getHTMLPanels([{ title: `THREADS
+        const htmlRTOSPanels = this.getHTMLPanels([{
+            title: `THREADS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.finalThreads.length}
                                                             </vscode-badge>` },
-                                                   { title: 'GLOBAL' },
-                                                   { title: `TIMERS
+        { title: 'GLOBAL' },
+        {
+            title: `TIMERS
                                                             <vscode-badge appearance="secondary">
                                                             ${this.virtualTimersInfo.length}
                                                             </vscode-badge>` },
-                                                   { title: 'STATISTICS' }],
-                                                  [{ content: htmlThreads.html },
-                                                   { content: htmlGlobalInfo },
-                                                   { content: htmlVirtualTimersInfo },
-                                                   { content: htmlStatistics }],
-                                                  [{ name: 'id', value: 'rtos-panels' },
-                                                   { name: 'aria-label', value: 'ChibiOS RTOS Information Panel' },
-                                                   { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
-                                                   { name: 'debug-session-id', value: this.session.id }],
-                                                   true);
+        { title: 'STATISTICS' }],
+            [{ content: htmlThreads.html },
+            { content: htmlGlobalInfo },
+            { content: htmlVirtualTimersInfo },
+            { content: htmlStatistics }],
+            [{ name: 'id', value: 'rtos-panels' },
+            { name: 'aria-label', value: 'ChibiOS RTOS Information Panel' },
+            { name: 'activeid', value: this.uiElementState.get('rtos-panels.activeid') },
+            { name: 'debug-session-id', value: this.session.id }],
+            true);
 
         htmlContent.html = `${htmlRTOSPanels}\n<p>Data collected at ${this.timeInfo}</p>\n`;
 
