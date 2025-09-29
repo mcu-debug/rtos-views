@@ -10,6 +10,7 @@ import { RTOSEmbOS } from './rtos-embos';
 import { RTOSChibiOS } from './rtos-chibios';
 import { RTOSZEPHYR } from './rtos-zephyr';
 import { RTOSThreadX } from './rtos-threadx';
+import { RTOSRTX5 } from './rtos-rtx5';
 
 import {
     IDebugTracker,
@@ -27,6 +28,7 @@ export const TrackedDebuggers = [
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
     'mplab-core-da', // Microchip debugger
+    'gdbtarget', // Eclipse-CDT-GDB debugger
 ];
 
 let trackerApi: IDebugTracker;
@@ -46,6 +48,8 @@ const RTOS_TYPES = {
     Zephyr: RTOSZEPHYR,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     ThreadX: RTOSThreadX,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    RTX5: RTOSRTX5,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };

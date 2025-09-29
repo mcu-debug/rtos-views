@@ -33,7 +33,8 @@
         "vrepetenko",
         "wabase",
         "waend",
-        "wtobjp"
+        "wtobjp",
+        "gdbtarget",
     ],
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "prettier.trailingComma": "none",

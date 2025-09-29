@@ -37,3 +37,4 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | ChibiOS (beta) | @vrepetenko VR         |
 | uC/OS-III      | @github0null           |
 | ThreadX        | @raphaelmeyer          |
+| RTX5           | @thorstendb-ARM        |
