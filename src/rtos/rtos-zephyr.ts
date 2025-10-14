@@ -217,7 +217,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
 
                             const curTaskObjBase = await this.getVarChildrenObj(curTaskObj.base.ref, 'curTaskObjBase');
 
-                            const thStateObject = await this.analyzeTaskState(curTaskObjBase);
+                            const thStateObject = await this.analyzeTaskState(curTaskObjBase, threadRunning);
                             const thState = thStateObject.describe();
 
                             const stackInfo = await this.getStackInfo(curTaskObj);
@@ -229,11 +229,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
 
                             mySetter(DisplayFields.Address, RTOSCommon.hexFormat(thAddress));
                             mySetter(DisplayFields.TaskName, thName);
-                            mySetter(
-                                DisplayFields.Status,
-                                threadRunning ? 'RUNNING' : thState,
-                                thStateObject.fullData()
-                            );
+                            mySetter(DisplayFields.Status, thState, thStateObject.fullData());
                             mySetter(
                                 DisplayFields.Priority,
                                 curTaskObjBase ? parseInt(curTaskObjBase.prio.val).toString() : '???'
@@ -306,15 +302,15 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
         return timeoutValue;
     }
 
-    protected async analyzeTaskState(curTaskObjBase: RTOSCommon.RTOSStrToValueMap | null): Promise<TaskState> {
+    protected async analyzeTaskState(curTaskObjBase: RTOSCommon.RTOSStrToValueMap | null, isCurrent: boolean): Promise<TaskState> {
         if (curTaskObjBase === null) {
             return new TaskStateInvalid();
         } else {
             const state = parseInt(curTaskObjBase.thread_state.val);
             const timeoutValue = await this.getTaskTimeout(curTaskObjBase);
-            switch (state) {
-                case OsTaskState.DUMMY:
-                    return new TaskDummy();
+
+            /* Ignore special DUMMY bit for state determination */
+            switch (state & ~OsTaskState.DUMMY) {
                 case OsTaskState.PENDING:
                     const resultState = new TaskPending();
                     resultState.addEventType(OsEventType.Generic);
@@ -338,18 +334,11 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
                         }
                     }
                     return resultState;
-                case OsTaskState.PRESTART:
-                    return new TaskPrestart();
-                case OsTaskState.DEAD:
-                    return new TaskStateInvalid();
                 case OsTaskState.SUSPENDED:
                     return new TaskSuspended(timeoutValue);
-                case OsTaskState.ABORTING:
-                    return new TaskAborting();
-                case OsTaskState.READY:
-                    return new TaskReady();
                 default: {
-                    return new TaskStateInvalid();
+                    /* TODO: handle 'idle' threads special case */
+                    return new GenericTaskState(state, isCurrent);
                 }
             }
         }
@@ -446,14 +435,20 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
     }
 }
 
+/**
+ * NOTE: the base.thread_state bit _THREAD_QUEUED
+ * is NOT cleared on the thread that is currently
+ * running if Zephyr is built without SMP support.
+ */
 enum OsTaskState {
-    DUMMY = 0x00 /* _THREAD_DUMMY / Not a real thread */,
-    PENDING = 0x01 /* _THREAD_PENDING / Waiting */,
-    PRESTART = 0x02 /* _THREAD_PRESTART / New */,
-    DEAD = 0x04 /* _THREAD_DEAD / Terminated */,
-    SUSPENDED = 0x10 /* _THREAD_SUSPENDED / Suspended (thread is not active until k_wakeup() is called on thread) */,
-    ABORTING = 0x20 /* _THREAD_ABORTING / abort in progress */,
-    READY = 0x80 /* _THREAD_QUEUED / Ready */,
+    DUMMY = 1 << 0 /* _THREAD_DUMMY / Not a real thread */,
+    PENDING = 1 << 1 /* _THREAD_PENDING / Waiting on object */,
+    SLEEPING = 1 << 2 /* _THREAD_SLEEPING / Sleeping */,
+    DEAD = 1 << 3 /* _THREAD_DEAD / Terminated */,
+    SUSPENDED = 1 << 4 /* _THREAD_SUSPENDED / Suspended */,
+    ABORTING = 1 << 5 /* _THREAD_ABORTING / Abort in progress */,
+    SUSPENDING = 1 << 6 /* _THREAD_SUSPENDING / Suspend in progress */,
+    READY = 1 << 7 /* _THREAD_QUEUED / Thread in ready queue */,
 }
 
 enum OsEventType {
@@ -465,9 +460,28 @@ abstract class TaskState {
     public abstract fullData(): any;
 }
 
-class TaskReady extends TaskState {
+class GenericTaskState extends TaskState {
+    private description: string;
+
+    constructor(state: OsTaskState, isCurrent: boolean) {
+        super();
+
+        let prefix = '';
+        if (state & OsTaskState.DUMMY) {
+            prefix = 'DUMMY | ';
+            state &= ~OsTaskState.DUMMY;
+        }
+
+        if (isCurrent) {
+                this.description = prefix + 'RUNNING';
+        } else {
+                this.description = prefix + (OsTaskState[state] ?? '???');
+        }
+
+    }
+
     public describe(): string {
-        return 'READY';
+        return this.description;
     }
 
     public fullData(): any {
@@ -489,36 +503,6 @@ class TaskSuspended extends TaskState {
             suspendDescription += ` for: ${this.timeout.toString()} ms`;
         }
         return suspendDescription;
-    }
-
-    public fullData(): any {
-        return null;
-    }
-}
-
-class TaskAborting extends TaskState {
-    public describe(): string {
-        return 'ABORTING';
-    }
-
-    public fullData(): any {
-        return null;
-    }
-}
-
-class TaskPrestart extends TaskState {
-    public describe(): string {
-        return 'PRESTART';
-    }
-
-    public fullData(): any {
-        return null;
-    }
-}
-
-class TaskDummy extends TaskState {
-    public describe(): string {
-        return 'DUMMY';
     }
 
     public fullData(): any {
