@@ -645,7 +645,6 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                 (await this.getExprVal('(char *)' + thInfo['pcTaskName']?.exp, frameId)) || '';
                             const match = tmpThName.match(/"([^*]*)"$/);
                             const thName = match ? match[1] : tmpThName;
-                            const stackInfo = await this.getStackInfo(thInfo, 0xA5, frameId);
                             // This is the order we want stuff in
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
                             const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -692,6 +691,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                                     }
                                 }
                             }
+                            const stackInfo = await this.getStackInfo(threadRunning, thInfo, 0xA5, frameId);
                             mySetter(DisplayFields.StackStart, RTOSCommon.hexFormat(stackInfo.stackStart));
                             mySetter(
                                 DisplayFields.StackTop,
@@ -750,7 +750,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         });
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number, frameId: number) {
+    protected async getStackInfo(threadRunning: boolean, thInfo: RTOSCommon.RTOSStrToValueMap, waterMark: number, frameId: number) {
         const pxStack = thInfo['pxStack']?.val;
         const pxTopOfStack = thInfo['pxTopOfStack']?.val;
         const pxEndOfStack = thInfo['pxEndOfStack']?.val;
@@ -758,7 +758,8 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             stackStart: parseInt(pxStack),
             stackTop: parseInt(pxTopOfStack)
         };
-        const mpuStackTop = await this.mpuGetStackTop(thInfo, frameId);
+
+        const mpuStackTop = await this.mpuGetStackTop(threadRunning, thInfo, frameId);
         if (mpuStackTop === null) {
             stackInfo.stackTop = undefined;
         } else if (mpuStackTop !== undefined) {
@@ -817,6 +818,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
     // * undefined: no MPU context was found (meaning pxTopOfStack can be used for deltas)
     // * null: MPU context was found, but could not be interpreted (unsupported architecture, unexpected size, etc.)
     private async mpuGetStackTop(
+        threadRunning: boolean,
         thInfo: RTOSCommon.RTOSStrToValueMap,
         frameId: number
     ): Promise<number | null | undefined> {
@@ -825,8 +827,11 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
         }
         const xMPUSettings = (await this.getVarChildrenObj(thInfo['xMPUSettings'].ref, 'xMPUSettings')) || {};
 
-        // non-privileged tasks use a separate system call stack, and back up
-        // their task SP. Use that backup if it's present and non-NULL.
+        // When a non-privileged task voluntarily relinquishes the CPU,
+        // uxContext contains a pointer into the system call stack, rather than
+        // the task stack. While that task is paused, pulTaskStack
+        // (pulTaskStackPointer on some ports) will contain a backup of the
+        // task's stack pointer. (continued...)
         if ('xSystemCallStackInfo' in xMPUSettings) {
             const xSystemCallStackInfo =
                 (await this.getVarChildrenObj(xMPUSettings['xSystemCallStackInfo'].ref, 'xSystemCallStackInfo')) || {};
@@ -837,6 +842,18 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
                 if (taskSP !== 0) {
                     return taskSP;
                 }
+            }
+        }
+
+        // (...) However, when that task returns to a RUNNING state,
+        // pulTaskStack gets zeroed and the only way to get a stack top that
+        // bears any resemblance to reality is to read directly from the stack
+        // pointer register. Note that this can still have surprising results if
+        // the program is halted in an ISR or system call.
+        if (threadRunning) {
+            const taskSP = await this.getStackPointerRegVal(frameId);
+            if (taskSP !== undefined) {
+                return taskSP;
             }
         }
 

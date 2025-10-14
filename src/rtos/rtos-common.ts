@@ -194,6 +194,31 @@ export abstract class RTOSBase {
         }
     }
 
+    protected async getStackPointerRegVal(frameId: number): Promise<number | undefined> {
+        const spRegs = [
+            // Cortex-M ports use PSP for task stacks, MSP for exceptions
+            'psp',
+            // Cortex-A/R uses r13_usr for task stacks, r13_irq, r13_fiq, r13_svc, etc. for exceptions
+            'r13_usr',
+            // ...but OpenOCD calls it sp_usr, not r13_usr
+            'sp_usr',
+            // Both GDB and LLDB provide a generic stack pointer alias named $sp
+            // on platforms that don't already define a register named "sp". For
+            // other debuggers, this method may fail to find the stack pointer
+            // register.
+            'sp',
+        ];
+        for (const spReg of spRegs) {
+            try {
+                const val = parseInt((await this.evalForVarValue(frameId, `$${spReg}`)) || '');
+                if (val) {
+                    return val;
+                }
+            } catch (e) {}
+        }
+        return undefined;
+    }
+
     protected async detectArchitectureIfEmpty(
         architecture: Architecture | undefined,
         frameId: number
