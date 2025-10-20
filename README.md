@@ -24,6 +24,9 @@ Here is an example of a FreeRTOS view with some information missing. We generall
 Here is an example of a uC/OS-III RTOS view
 ![uC/OS-III](./images/uCOS-III.png)
 
+Here is an example of an RTX5 RTOS view
+![RTX5](./images/RTX5.png)
+
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality
 
 # Contributors and maintainers
