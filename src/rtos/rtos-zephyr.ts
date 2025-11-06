@@ -232,7 +232,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
                             mySetter(DisplayFields.Status, thState, thStateObject.fullData());
                             mySetter(
                                 DisplayFields.Priority,
-                                curTaskObjBase ? parseInt(curTaskObjBase.prio.val).toString() : '???'
+                                (curTaskObjBase && curTaskObjBase.prio) ? parseInt(curTaskObjBase.prio.val).toString() : '???'
                             );
 
                             if (stackInfo.stackUsed !== undefined && stackInfo.stackSize !== undefined) {
@@ -366,7 +366,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
         stackInfo.stackTop = parseInt(TopOfStack);
 
         /* only available with CONFIG_THREAD_STACK_INFO (optional) */
-        if (thInfo.stack_info !== null) {
+        if (thInfo.stack_info !== null && thInfo.stack_info !== undefined) {
             const stack_info = await this.getVarChildrenObj(thInfo.stack_info.ref, 'stack_info');
             if (stack_info !== null) {
                 const StackSize = stack_info['size']?.val;
