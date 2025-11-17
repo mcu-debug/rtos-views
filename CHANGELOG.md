@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.13-pre1 - 
+
+- PR#82: Zephyr support: fixed detection of stack_info and curTaskObjBase.prio
+
 ## 0.0.12-pre1 - Sep 17, 2025
 
 -   PR#75: Add support for uC/OS-III.
