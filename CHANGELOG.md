@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.0.13-pre1 - 
+## 0.0.13-pre1 - Nov 17, 2025
 
 - PR#82: Zephyr support: fixed detection of stack_info and curTaskObjBase.prio
 
