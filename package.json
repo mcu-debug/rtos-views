@@ -2,7 +2,7 @@
     "name": "rtos-views",
     "displayName": "RTOS Views",
     "description": "RTOS views for microcontrollers",
-    "version": "0.0.13-thorstendb-arm-01",
+    "version": "0.0.12",
     "publisher": "mcu-debug",
     "preview": true,
     "repository": {
