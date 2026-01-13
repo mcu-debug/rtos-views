@@ -31,7 +31,9 @@
         "onDebugResolve:cortex-debug",
         "onDebugResolve:cppdbg",
         "onDebugResolve:cspy",
-        "onDebugResolve:gdbtarget"
+        "onDebugResolve:gdbtarget",
+        "onDebugResolve:stlinkgdbtarget",
+        "onDebugResolve:jlinkgdbtarget"
     ],
     "main": "./dist/extension.js",
     "contributes": {
