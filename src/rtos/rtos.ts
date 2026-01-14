@@ -29,6 +29,8 @@ export const TrackedDebuggers = [
     'cspy', // IAR debugger
     'mplab-core-da', // Microchip debugger
     'gdbtarget', // Eclipse-CDT-GDB debugger
+    'stlinkgdbtarget', // STMicroelectronics ST-Link debugger
+    'jlinkgdbtarget', // STMicroelectronics J-Link debugger
 ];
 
 let trackerApi: IDebugTracker;
