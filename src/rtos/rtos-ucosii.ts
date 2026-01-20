@@ -291,7 +291,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
                             );
                             const thState = thStateObject.describe();
 
-                            const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern, frameId);
+                            const stackInfo = await this.getStackInfo(curTaskObj, this.stackPattern, threadRunning, frameId);
 
                             const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
                             const mySetter = (x: DisplayFields, text: string, value?: any) => {
@@ -503,12 +503,20 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         return result;
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, _frameId: number) {
-        const TopOfStack = thInfo['OSTCBStkPtr']?.val;
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap, stackPattern: number, threadRunning: boolean, _frameId: number) {
+        let TopOfStack = parseInt(thInfo['OSTCBStkPtr']?.val);
 
         /* only available with OS_TASK_CREATE_EXT_EN (optional) */
         const EndOfStack = parseInt(thInfo['OSTCBStkBottom']?.val) || 0;
         const StackSize = parseInt(thInfo['OSTCBStkSize']?.val) || 0;
+
+        /* When task is currently running try to get real stack pointer from CPU registers */
+        if (threadRunning === true) {
+            const taskSP = await this.getStackPointerRegVal(_frameId);
+            if (taskSP !== undefined) {
+                TopOfStack = taskSP;
+            }
+        }
 
         let Stack = 0;
         if (EndOfStack !== 0 && StackSize !== 0) {
@@ -521,13 +529,13 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         }
         else {
             /* As stackStart is mandatory, we need to set it to some reasonable value */
-            Stack = parseInt(TopOfStack);
+            Stack = TopOfStack;
         }
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: Stack
         };
-        stackInfo.stackTop = parseInt(TopOfStack);
+        stackInfo.stackTop = TopOfStack;
 
         if (EndOfStack !== 0 && StackSize !== 0) {
             stackInfo.stackEnd = EndOfStack;
