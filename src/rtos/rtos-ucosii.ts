@@ -371,8 +371,9 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
         eventObject: RTOSCommon.RTOSStrToValueMap,
         _frameId: number
     ): Promise<EventInfo> {
-        const eventInfo: EventInfo = { address, eventType: parseInt(eventObject['OSEventType']?.val) };
+        const eventTypeConverted = convertFsEventType(parseInt(eventObject['OSEventType']?.val));
 
+        const eventInfo: EventInfo = {address, eventType: eventTypeConverted };
         if (eventObject['OSEventName']?.val) {
             const value = eventObject['OSEventName']?.val;
             const matchName = value.match(/"(.*)"$/);
@@ -459,42 +460,45 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
             if (flagGroupPtr.variablesReference > 0 && flagGroupPtr.evaluateName) {
                 const osFlagGrp = await this.getVarChildrenObj(flagGroupPtr.variablesReference, flagGroupPtr.name);
                 // Check if we are looking at an initialized flag group
-                if (osFlagGrp && parseInt(osFlagGrp['OSFlagType']?.val) === OsEventType.Flag) {
-                    const groupAddr = parseInt(
-                        (await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId)) || ''
-                    );
-                    const flagGroup: FlagGroup = { address: groupAddr };
-                    const reprValue = osFlagGrp['OSFlagName']?.val;
-                    if (reprValue) {
-                        const matchName = reprValue.match(/"(.*)"$/);
-                        flagGroup.name = matchName ? matchName[1] : reprValue;
-                    }
-
-                    // Follow the linked list of flag group nodes. The cast is safe here because we checked OSFlagType before
-                    let flagNode = await this.getExprValChildrenObj(
-                        `(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList']?.exp})`,
-                        frameId
-                    );
-                    while (flagNode) {
-                        const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB']?.val || '');
-                        if (!waitingTcbAddr || waitingTcbAddr === 0) {
-                            break;
+                if (osFlagGrp) {
+                    const flagType = parseInt(osFlagGrp['OSFlagType']?.val);
+                    if (flagType === OsEventType.Flag || flagType === OsEventTypeFS.Flag) {
+                        const groupAddr = parseInt(
+                            (await this.getExprVal(`&(${flagGroupPtr.evaluateName})`, frameId)) || ''
+                        );
+                        const flagGroup: FlagGroup = { address: groupAddr };
+                        const reprValue = osFlagGrp['OSFlagName']?.val;
+                        if (reprValue) {
+                            const matchName = reprValue.match(/"(.*)"$/);
+                            flagGroup.name = matchName ? matchName[1] : reprValue;
                         }
 
-                        if (!result.has(waitingTcbAddr)) {
-                            result.set(waitingTcbAddr, []);
-                        }
-                        result.get(waitingTcbAddr)?.push(flagGroup);
+                        // Follow the linked list of flag group nodes. The cast is safe here because we checked OSFlagType before
+                        let flagNode = await this.getExprValChildrenObj(
+                            `(OS_FLAG_NODE *)(${osFlagGrp['OSFlagWaitList']?.exp})`,
+                            frameId
+                        );
+                        while (flagNode) {
+                            const waitingTcbAddr = parseInt(flagNode['OSFlagNodeTCB']?.val || '');
+                            if (!waitingTcbAddr || waitingTcbAddr === 0) {
+                                break;
+                            }
 
-                        const nextFlagNodeAddr = parseInt(flagNode['OSFlagNodeNext']?.val);
-                        if (nextFlagNodeAddr === 0) {
-                            break;
-                        } else {
-                            // Need to cast here since the next pointer is declared as void *
-                            flagNode = await this.getExprValChildrenObj(
-                                `(OS_FLAG_NODE *) ${nextFlagNodeAddr}`,
-                                frameId
-                            );
+                            if (!result.has(waitingTcbAddr)) {
+                                result.set(waitingTcbAddr, []);
+                            }
+                            result.get(waitingTcbAddr)?.push(flagGroup);
+
+                            const nextFlagNodeAddr = parseInt(flagNode['OSFlagNodeNext']?.val);
+                            if (nextFlagNodeAddr === 0) {
+                                break;
+                            } else {
+                                // Need to cast here since the next pointer is declared as void *
+                                flagNode = await this.getExprValChildrenObj(
+                                    `(OS_FLAG_NODE *) ${nextFlagNodeAddr}`,
+                                    frameId
+                                );
+                            }
                         }
                     }
                 }
@@ -641,12 +645,47 @@ const PendingTaskStates = [
     OsTaskState.PEND_FLAGGROUP
 ] as const;
 
+// Used as OS_EVENT->OSEventType & OS_FLAG_GRP->OSFlagType
 enum OsEventType {
     Mailbox = 1,
     Queue = 2,
     Semaphore = 3,
     Mutex = 4,
-    Flag = 5
+    Flag = 5,
+    Unknown = 0xff
+}
+
+// Used as OS_EVENT->OSEventType & OS_FLAG_GRP->OSFlagType in some special uC/OS-II adaptions
+enum OsEventTypeFS {
+    Mailbox = 0x0f,
+    Queue = 0x33,
+    Semaphore = 0x66,
+    Mutex = 0x99,
+    Flag = 0xcc
+}
+
+function convertFsEventType(fsType: number | undefined): OsEventType {
+    let eventTypeConverted = OsEventType.Unknown;
+
+    switch (fsType) {
+        case OsEventTypeFS.Mailbox:
+            eventTypeConverted = OsEventType.Mailbox;
+            break;
+        case OsEventTypeFS.Queue:
+            eventTypeConverted = OsEventType.Queue;
+            break;
+        case OsEventTypeFS.Semaphore:
+            eventTypeConverted = OsEventType.Semaphore;
+            break;
+        case OsEventTypeFS.Mutex:
+            eventTypeConverted = OsEventType.Mutex;
+            break;
+        case OsEventTypeFS.Flag:
+            eventTypeConverted = OsEventType.Flag;
+            break;
+    }
+
+    return eventTypeConverted;
 }
 
 function getEventTypeForTaskState(state: OsTaskState): OsEventType {
