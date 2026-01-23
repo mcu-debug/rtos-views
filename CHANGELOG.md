@@ -5,7 +5,8 @@
 
 ## 0.0.14-pre1 - Jan 14, 2026
 
-- PR#84: Support for STMicroelectronics adapters
+- PR#84: Contribution to support for STMicroelectronics adapters
+- PR$87: Contribution to support for FS-RTOS
 
 ## 0.0.13-pre1 - Nov 17, 2025
 

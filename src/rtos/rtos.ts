@@ -25,6 +25,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const TrackedDebuggers = [
     'cortex-debug',
+    'mcu-debug', // MCU Debug extension
     'cppdbg', // Microsoft debugger
     'cspy', // IAR debugger
     'mplab-core-da', // Microchip debugger
@@ -422,7 +423,7 @@ export class RTOSTracker implements DebugEventHandler {
             }
             try {
                 await this.update();
-            } catch {}
+            } catch { }
         }
     }
 
@@ -502,7 +503,7 @@ class RTOSViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'rtos-views.rtos';
     private webviewView: vscode.WebviewView | undefined;
 
-    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) {}
+    constructor(private readonly extensionUri: vscode.Uri, private parent: RTOSTracker) { }
 
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
