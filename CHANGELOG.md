@@ -3,7 +3,7 @@
 - Read stackTop for current running task with function contributed by @malsyned also in uc/OS-II.
 - Add FS-RTOS support. FS-RTOS is very similar to uC/OS-II, so no need to create a own implementation for it.
 
-## 0.0.14-pre1 - Jan 14, 2026
+## 0.0.14 - Jan 25, 2026
 
 - PR#84: Contribution to support for STMicroelectronics adapters
 - PR$87: Contribution to support for FS-RTOS
