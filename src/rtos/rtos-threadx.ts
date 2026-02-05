@@ -112,18 +112,40 @@ const MutexTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
     },
 };
 
+const BytePoolTableItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {
+    name: {
+        width: 2,
+        headerRow1: 'Byte Pool',
+        headerRow2: 'Name',
+    },
+    start: {
+        width: 2,
+        headerRow1: 'Start',
+        headerRow2: 'Address',
+    },
+    pool: {
+        width: 4,
+        headerRow1: '',
+        headerRow2: 'Usage',
+        colType: RTOSCommon.ColTypeEnum.colTypePercentage,
+    },
+};
+
 const ThreadTableItemNames: string[] = Object.keys(ThreadTableItems);
 const SemaphoreTableItemNames: string[] = Object.keys(SemaphoreTableItems);
 const MutexTableItemNames: string[] = Object.keys(MutexTableItems);
+const BytePoolItemNames: string[] = Object.keys(BytePoolTableItems);
 
 export class RTOSThreadX extends RTOSCommon.RTOSBase {
     private threadCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
     private semaphoreCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
     private mutexCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
+    private bytePoolCreatedCount: RTOSCommon.RTOSVarHelperMaybe;
 
     private threads: RTOSCommon.RTOSThreadInfo[] = [];
     private semaphores: RTOSCommon.RTOSDisplayInfo[] = [];
     private mutexes: RTOSCommon.RTOSDisplayInfo[] = [];
+    private bytePools: RTOSCommon.RTOSDisplayInfo[] = [];
 
     constructor(public session: vscode.DebugSession) {
         super(session, 'ThreadX');
@@ -137,21 +159,28 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     this.threadCreatedCount,
                     useFrameId,
                     '_tx_thread_created_count',
-                    false
+                    false,
                 );
 
                 this.semaphoreCreatedCount = await this.getVarIfEmpty(
                     this.semaphoreCreatedCount,
                     useFrameId,
                     '_tx_semaphore_created_count',
-                    false
+                    false,
                 );
 
                 this.mutexCreatedCount = await this.getVarIfEmpty(
                     this.mutexCreatedCount,
                     useFrameId,
                     '_tx_mutex_created_count',
-                    false
+                    false,
+                );
+
+                this.bytePoolCreatedCount = await this.getVarIfEmpty(
+                    this.bytePoolCreatedCount,
+                    useFrameId,
+                    '_tx_byte_pool_created_count',
+                    false,
                 );
 
                 this.status = 'initialized';
@@ -189,7 +218,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                 (reason) => {
                     resolve();
                     console.error('RTOSThreadX.refresh() failed: ', reason);
-                }
+                },
             );
 
             this.semaphoreCreatedCount?.getValue(frameId).then(
@@ -206,7 +235,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                 (reason) => {
                     resolve();
                     console.error('RTOSThreadX.refresh() failed: ', reason);
-                }
+                },
             );
 
             this.mutexCreatedCount?.getValue(frameId).then(
@@ -223,7 +252,24 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                 (reason) => {
                     resolve();
                     console.error('RTOSThreadX.refresh() failed: ', reason);
-                }
+                },
+            );
+
+            this.bytePoolCreatedCount?.getValue(frameId).then(
+                async (str) => {
+                    try {
+                        const numBytePools = parseInt(str ?? '') || 0;
+                        await this.getBytePoolInfo(numBytePools, frameId);
+                        resolve();
+                    } catch (e) {
+                        resolve();
+                        console.error('RTOSThreadX.refresh() failed: ', e);
+                    }
+                },
+                (reason) => {
+                    resolve();
+                    console.error('RTOSThreadX.refresh() failed: ', reason);
+                },
             );
         });
     }
@@ -237,18 +283,25 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
             SemaphoreTableItemNames,
             SemaphoreTableItems,
             this.semaphores,
-            (_) => ''
+            (_) => '',
         );
 
         const htmlMutexes = this.getHTMLTable(MutexTableItemNames, MutexTableItems, this.mutexes, (_) => '');
 
-        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }, { title: 'Mutexes' }];
-        const views = [{ content: htmlThreads.html }, { content: htmlSemaphores.html }, { content: htmlMutexes.html }];
+        const htmlBytePools = this.getHTMLTable(BytePoolItemNames, BytePoolTableItems, this.bytePools, (_) => '');
+
+        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }, { title: 'Mutexes' }, { title: 'Byte Pools' }];
+        const views = [
+            { content: htmlThreads.html },
+            { content: htmlSemaphores.html },
+            { content: htmlMutexes.html },
+            { content: htmlBytePools.html },
+        ];
 
         const htmlPanels = this.getHTMLPanels(tabs, views, [], true);
 
         htmlContent.html = htmlPanels;
-        htmlContent.css = htmlThreads.css;
+        htmlContent.css = [htmlThreads.css, htmlBytePools.css].join('\n');
 
         return htmlContent;
     }
@@ -261,7 +314,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
         let thread: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
             '_tx_thread_created_ptr',
-            frameId
+            frameId,
         );
 
         for (let i = 0; i < numThreads && thread !== undefined; i++) {
@@ -358,7 +411,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
         let address = (await this.getExprVal('_tx_semaphore_created_ptr', frameId)) ?? '';
         let semaphore: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
             '_tx_semaphore_created_ptr',
-            frameId
+            frameId,
         );
 
         for (let i = 0; i < numSemaphores && semaphore !== undefined; i++) {
@@ -369,7 +422,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
             const suspended = await this.getSuspendedThreads(
                 semaphore['tx_semaphore_suspension_list'],
-                parseInt(suspensions) || 0
+                parseInt(suspensions) || 0,
             );
 
             semaphores.push({
@@ -413,7 +466,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
         let address = (await this.getExprVal('_tx_mutex_created_ptr', frameId)) ?? '';
         let mutex: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
             '_tx_mutex_created_ptr',
-            frameId
+            frameId,
         );
 
         for (let i = 0; i < numMutexes && mutex !== undefined; i++) {
@@ -426,7 +479,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
             const suspended = await this.getSuspendedThreads(
                 mutex['tx_mutex_suspension_list'],
-                parseInt(suspensions) || 0
+                parseInt(suspensions) || 0,
             );
 
             mutexes.push({
@@ -445,6 +498,41 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
         }
 
         this.mutexes = mutexes;
+    }
+
+    private async getBytePoolInfo(numBytePools: number, frameId: number): Promise<void> {
+        const bytePools: RTOSCommon.RTOSDisplayInfo[] = [];
+
+        let bytePool: RTOSCommon.RTOSStrToValueMap | undefined = await this.getExprValChildrenObj(
+            '_tx_byte_pool_created_ptr',
+            frameId,
+        );
+
+        for (let i = 0; i < numBytePools && bytePool !== undefined; i++) {
+            const name = this.stringFromCharPointer(bytePool['tx_byte_pool_name']?.val);
+            const available = parseInt(bytePool['tx_byte_pool_available']?.val ?? '') || 0;
+            const size = parseInt(bytePool['tx_byte_pool_size']?.val ?? '') || 0;
+            const poolStart = parseInt(bytePool['tx_byte_pool_start']?.val ?? '') || 0;
+
+            const startText = RTOSCommon.hexFormat(poolStart);
+
+            const used = size - available;
+            const usedText = `${used} / ${size}`;
+            const usedPercent = Math.round((used / size) * 100);
+
+            bytePools.push({
+                display: {
+                    name: { text: name },
+                    start: { text: startText },
+                    pool: { text: usedText, value: usedPercent },
+                },
+            });
+
+            const next = bytePool['tx_byte_pool_created_next'];
+            bytePool = (await this.getVarChildrenObj(next?.ref ?? NaN, 'next byte pool')) ?? undefined;
+        }
+
+        this.bytePools = bytePools;
     }
 
     private stringFromCharPointer(name: string | undefined): string {
