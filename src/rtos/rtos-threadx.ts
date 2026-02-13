@@ -518,7 +518,13 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
             const used = size - available;
             const usedText = `${used} / ${size}`;
-            const usedPercent = Math.round((used / size) * 100);
+            let usedPercent = 0;
+            if (size > 0) {
+                const ratio = used / size;
+                if (Number.isFinite(ratio)) {
+                    usedPercent = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+                }
+            }
 
             bytePools.push({
                 display: {
