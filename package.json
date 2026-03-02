@@ -35,7 +35,9 @@
         "onDebugResolve:cspy",
         "onDebugResolve:gdbtarget",
         "onDebugResolve:stlinkgdbtarget",
-        "onDebugResolve:jlinkgdbtarget"
+        "onDebugResolve:jlinkgdbtarget",
+        "onDebugResolve:renesas-hardware",
+        "onDebugResolve:renesas-simulator"
     ],
     "main": "./dist/extension.js",
     "contributes": {

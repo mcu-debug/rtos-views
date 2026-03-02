@@ -32,6 +32,8 @@ export const TrackedDebuggers = [
     'gdbtarget', // Eclipse-CDT-GDB debugger
     'stlinkgdbtarget', // STMicroelectronics ST-Link debugger
     'jlinkgdbtarget', // STMicroelectronics J-Link debugger
+    'renesas-hardware', // Renesas GDB hardware debugger
+    'renesas-simulator', // Renesas Simulator debugger
 ];
 
 let trackerApi: IDebugTracker;
