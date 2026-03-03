@@ -166,21 +166,21 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     this.semaphoreCreatedCount,
                     useFrameId,
                     '_tx_semaphore_created_count',
-                    false,
+                    true,
                 );
 
                 this.mutexCreatedCount = await this.getVarIfEmpty(
                     this.mutexCreatedCount,
                     useFrameId,
                     '_tx_mutex_created_count',
-                    false,
+                    true,
                 );
 
                 this.bytePoolCreatedCount = await this.getVarIfEmpty(
                     this.bytePoolCreatedCount,
                     useFrameId,
                     '_tx_byte_pool_created_count',
-                    false,
+                    true,
                 );
 
                 this.status = 'initialized';
@@ -290,12 +290,54 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
 
         const htmlBytePools = this.getHTMLTable(BytePoolItemNames, BytePoolTableItems, this.bytePools, (_) => '');
 
-        const tabs = [{ title: 'Threads' }, { title: 'Semaphores' }, { title: 'Mutexes' }, { title: 'Byte Pools' }];
+        const tabs = [
+            {
+                title: `Threads
+                <vscode-badge appearance="secondary">
+                ${this.threads.length}
+                </vscode-badge>`
+            },
+            {
+                title: `Semaphores
+                <vscode-badge appearance="secondary">
+                ${this.semaphores.length}
+                </vscode-badge>`
+            },
+            {
+                title: `Mutexes
+                <vscode-badge appearance="secondary">
+                ${this.mutexes.length}
+                </vscode-badge>`
+            },
+            {
+                title: `Byte Pools
+                <vscode-badge appearance="secondary">
+                ${this.bytePools.length}
+                </vscode-badge>`
+            }
+        ];
+
         const views = [
-            { content: htmlThreads.html },
-            { content: htmlSemaphores.html },
-            { content: htmlMutexes.html },
-            { content: htmlBytePools.html },
+            {
+                content:(this.threads.length > 0)
+                ? htmlThreads.html
+                : this.getNoThreadsFoundHtml().html
+            },
+            {
+                content: this.semaphoreCreatedCount
+                ? ((this.semaphores.length > 0) ? htmlSemaphores.html : this.getNoObjectsCreatedHtml('Semaphores', 'tx_semaphore_create()').html)
+                : this.getObjectNotAvailableHtml('Semaphores').html
+            },
+            {
+                content: this.mutexCreatedCount
+                ? ((this.mutexes.length > 0) ? htmlMutexes.html : this.getNoObjectsCreatedHtml('Mutexes', 'tx_mutex_create()').html)
+                : this.getObjectNotAvailableHtml('Mutexes').html
+            },
+            {
+                content: this.bytePoolCreatedCount
+                ? ((this.bytePools.length > 0) ? htmlBytePools.html : this.getNoObjectsCreatedHtml('Byte Pools', 'tx_byte_pool_create()').html)
+                : this.getObjectNotAvailableHtml('Byte Pools').html
+            },
         ];
 
         const htmlPanels = this.getHTMLPanels(tabs, views, [], true);
@@ -304,6 +346,61 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
         htmlContent.css = [htmlThreads.css, htmlBytePools.css].join('\n');
 
         return htmlContent;
+    }
+
+    /**
+     * Gets the HTML help text for missing symbol caused by ThreadX object not compiled or linked.
+     * @param objectName - Name of the ThreadX object in plural form.
+     * @returns Help text in the form of RTOSCommon.HtmlInfo.
+     */
+    private getObjectNotAvailableHtml(objectName: string): RTOSCommon.HtmlInfo{
+        return {
+            html: `
+            <div>
+                <div><strong>${objectName} not available in F/W</strong></div>
+                <div>
+                    ${objectName} not compiled or linked into the firmware that is being debugged.
+                </div>
+            </div>`,
+            css: ''
+        };
+    }
+
+    /**
+     * Gets the HTML help text for when no ThreadX threads are found. This function is specifically for threads only.
+     * @returns Help text in the form of RTOSCommon.HtmlInfo.
+     */
+    private getNoThreadsFoundHtml() : RTOSCommon.HtmlInfo {
+        return {
+            html: `
+            <div>
+                <div><strong>${this.name} threads not found</strong></div>
+                <div>
+                    No threads detected, perhaps RTOS not yet initialized or threads yet to be created.<br>
+                    Call <code>tx_thread_create()</code> to create them if necessary.
+                </div>
+            </div>`,
+            css: ''
+        };
+    }
+
+    /**
+     * Gets the HTML help text for when no ThreadX objects are found. This is a generic function for all objects.
+     * @param objectName - Name of the ThreadX object in plural form.
+     * @param createFunctionName - Name of the tx_*_create() function used to create the ThreadX object.
+     * @returns Help text in the form of RTOSCommon.HtmlInfo.
+     */
+    private getNoObjectsCreatedHtml(objectName: string, createFunctionName: string) : RTOSCommon.HtmlInfo {
+        return {
+            html: `
+            <div>
+                <div><strong>No ${objectName} found</strong></div>
+                <div>
+                    ${objectName} not created. Call <code>${createFunctionName}</code> to create them if necessary.
+                </div>
+            </div>`,
+            css: ''
+        };
     }
 
     private async getThreadInfo(numThreads: number, frameId: number): Promise<void> {
