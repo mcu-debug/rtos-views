@@ -295,48 +295,52 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                 title: `Threads
                 <vscode-badge appearance="secondary">
                 ${this.threads.length}
-                </vscode-badge>`
+                </vscode-badge>`,
             },
             {
                 title: `Semaphores
                 <vscode-badge appearance="secondary">
                 ${this.semaphores.length}
-                </vscode-badge>`
+                </vscode-badge>`,
             },
             {
                 title: `Mutexes
                 <vscode-badge appearance="secondary">
                 ${this.mutexes.length}
-                </vscode-badge>`
+                </vscode-badge>`,
             },
             {
                 title: `Byte Pools
                 <vscode-badge appearance="secondary">
                 ${this.bytePools.length}
-                </vscode-badge>`
-            }
+                </vscode-badge>`,
+            },
         ];
 
         const views = [
             {
-                content:(this.threads.length > 0)
-                ? htmlThreads.html
-                : this.getNoThreadsFoundHtml().html
+                content: this.threads.length > 0 ? htmlThreads.html : this.getNoThreadsFoundHtml().html,
             },
             {
                 content: this.semaphoreCreatedCount
-                ? ((this.semaphores.length > 0) ? htmlSemaphores.html : this.getNoObjectsCreatedHtml('Semaphores', 'tx_semaphore_create()').html)
-                : this.getObjectNotAvailableHtml('Semaphores').html
+                    ? this.semaphores.length > 0
+                        ? htmlSemaphores.html
+                        : this.getNoObjectsCreatedHtml('Semaphores', 'tx_semaphore_create()').html
+                    : this.getObjectNotAvailableHtml('Semaphores').html,
             },
             {
                 content: this.mutexCreatedCount
-                ? ((this.mutexes.length > 0) ? htmlMutexes.html : this.getNoObjectsCreatedHtml('Mutexes', 'tx_mutex_create()').html)
-                : this.getObjectNotAvailableHtml('Mutexes').html
+                    ? this.mutexes.length > 0
+                        ? htmlMutexes.html
+                        : this.getNoObjectsCreatedHtml('Mutexes', 'tx_mutex_create()').html
+                    : this.getObjectNotAvailableHtml('Mutexes').html,
             },
             {
                 content: this.bytePoolCreatedCount
-                ? ((this.bytePools.length > 0) ? htmlBytePools.html : this.getNoObjectsCreatedHtml('Byte Pools', 'tx_byte_pool_create()').html)
-                : this.getObjectNotAvailableHtml('Byte Pools').html
+                    ? this.bytePools.length > 0
+                        ? htmlBytePools.html
+                        : this.getNoObjectsCreatedHtml('Byte Pools', 'tx_byte_pool_create()').html
+                    : this.getObjectNotAvailableHtml('Byte Pools').html,
             },
         ];
 
@@ -353,7 +357,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
      * @param objectName - Name of the ThreadX object in plural form.
      * @returns Help text in the form of RTOSCommon.HtmlInfo.
      */
-    private getObjectNotAvailableHtml(objectName: string): RTOSCommon.HtmlInfo{
+    private getObjectNotAvailableHtml(objectName: string): RTOSCommon.HtmlInfo {
         return {
             html: `
             <div>
@@ -362,7 +366,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     ${objectName} not compiled or linked into the firmware that is being debugged.
                 </div>
             </div>`,
-            css: ''
+            css: '',
         };
     }
 
@@ -370,7 +374,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
      * Gets the HTML help text for when no ThreadX threads are found. This function is specifically for threads only.
      * @returns Help text in the form of RTOSCommon.HtmlInfo.
      */
-    private getNoThreadsFoundHtml() : RTOSCommon.HtmlInfo {
+    private getNoThreadsFoundHtml(): RTOSCommon.HtmlInfo {
         return {
             html: `
             <div>
@@ -380,7 +384,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     Call <code>tx_thread_create()</code> to create them if necessary.
                 </div>
             </div>`,
-            css: ''
+            css: '',
         };
     }
 
@@ -390,7 +394,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
      * @param createFunctionName - Name of the tx_*_create() function used to create the ThreadX object.
      * @returns Help text in the form of RTOSCommon.HtmlInfo.
      */
-    private getNoObjectsCreatedHtml(objectName: string, createFunctionName: string) : RTOSCommon.HtmlInfo {
+    private getNoObjectsCreatedHtml(objectName: string, createFunctionName: string): RTOSCommon.HtmlInfo {
         return {
             html: `
             <div>
@@ -399,7 +403,7 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
                     ${objectName} not created. Call <code>${createFunctionName}</code> to create them if necessary.
                 </div>
             </div>`,
-            css: ''
+            css: '',
         };
     }
 
