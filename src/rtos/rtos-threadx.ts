@@ -198,80 +198,38 @@ export class RTOSThreadX extends RTOSCommon.RTOSBase {
     }
 
     public refresh(frameId: number): Promise<void> {
-        return new Promise<void>((resolve) => {
-            if (this.progStatus !== 'stopped') {
-                resolve();
-                return;
+        if (this.progStatus !== 'stopped') {
+            return Promise.resolve();
+        }
+
+        const section = (
+            helper: RTOSCommon.RTOSVarHelperMaybe,
+            getInfo: (count: number) => Promise<void>,
+            label: string,
+        ): Promise<void> => {
+            if (!helper) {
+                return Promise.resolve();
             }
-
-            this.threadCreatedCount?.getValue(frameId).then(
+            return helper.getValue(frameId).then(
                 async (str) => {
                     try {
-                        const numThreads = parseInt(str ?? '') || 0;
-                        await this.getThreadInfo(numThreads, frameId);
-                        resolve();
+                        await getInfo(parseInt(str ?? '') || 0);
                     } catch (e) {
-                        resolve();
-                        console.error('RTOSThreadX.refresh() failed: ', e);
+                        console.error(`RTOSThreadX.refresh() ${label} failed: `, e);
                     }
                 },
                 (reason) => {
-                    resolve();
-                    console.error('RTOSThreadX.refresh() failed: ', reason);
+                    console.error(`RTOSThreadX.refresh() ${label} failed: `, reason);
                 },
             );
+        };
 
-            this.semaphoreCreatedCount?.getValue(frameId).then(
-                async (str) => {
-                    try {
-                        const numSemaphores = parseInt(str ?? '') || 0;
-                        await this.getSemaphoreInfo(numSemaphores, frameId);
-                        resolve();
-                    } catch (e) {
-                        resolve();
-                        console.error('RTOSThreadX.refresh() failed: ', e);
-                    }
-                },
-                (reason) => {
-                    resolve();
-                    console.error('RTOSThreadX.refresh() failed: ', reason);
-                },
-            );
-
-            this.mutexCreatedCount?.getValue(frameId).then(
-                async (str) => {
-                    try {
-                        const numMutexes = parseInt(str ?? '') || 0;
-                        await this.getMutexInfo(numMutexes, frameId);
-                        resolve();
-                    } catch (e) {
-                        resolve();
-                        console.error('RTOSThreadX.refresh() failed: ', e);
-                    }
-                },
-                (reason) => {
-                    resolve();
-                    console.error('RTOSThreadX.refresh() failed: ', reason);
-                },
-            );
-
-            this.bytePoolCreatedCount?.getValue(frameId).then(
-                async (str) => {
-                    try {
-                        const numBytePools = parseInt(str ?? '') || 0;
-                        await this.getBytePoolInfo(numBytePools, frameId);
-                        resolve();
-                    } catch (e) {
-                        resolve();
-                        console.error('RTOSThreadX.refresh() failed: ', e);
-                    }
-                },
-                (reason) => {
-                    resolve();
-                    console.error('RTOSThreadX.refresh() failed: ', reason);
-                },
-            );
-        });
+        return Promise.all([
+            section(this.threadCreatedCount, (n) => this.getThreadInfo(n, frameId), 'threads'),
+            section(this.semaphoreCreatedCount, (n) => this.getSemaphoreInfo(n, frameId), 'semaphores'),
+            section(this.mutexCreatedCount, (n) => this.getMutexInfo(n, frameId), 'mutexes'),
+            section(this.bytePoolCreatedCount, (n) => this.getBytePoolInfo(n, frameId), 'byte pools'),
+        ]).then(() => undefined);
     }
 
     public getHTML(): RTOSCommon.HtmlInfo {
