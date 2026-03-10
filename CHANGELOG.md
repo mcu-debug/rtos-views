@@ -4,7 +4,7 @@
 - Add FS-RTOS support. FS-RTOS is very similar to uC/OS-II, so no need to create a own implementation for it.
 - Add another tab to ThreadX to display byte pools.
 - Contribution to support for Renesas Electronics GDB hardware and simulator debugger
-- Some minor improvements for ThreadX detection
+- Improve detection for ThreadX to be more reliable and add additional information on unused components.
 
 ## 0.0.14 - Jan 25, 2026
 
