@@ -1,5 +1,7 @@
 # Change Log
 
+- FreeRTOS: Fix the issue where hints are not showing at all when Thread ID is missing.
+
 ## 0.0.15 - Mar 28, 2026
 
 - Read stackTop for current running task with function contributed by @malsyned also in uc/OS-II.

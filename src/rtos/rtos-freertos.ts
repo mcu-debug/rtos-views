@@ -249,7 +249,7 @@ export class RTOSFreeRTOS extends RTOSCommon.RTOSBase {
             this.helpHtml = '';
             try {
                 let ret = '';
-                if (!thInfo['uxTCBNumber'].val) {
+                if (!thInfo['uxTCBNumber']?.val) {
                     ret += `Thread ID missing......: Enable macro ${strong('configUSE_TRACE_FACILITY')} in FW<br>`;
                 }
                 if (!th.stackInfo.stackEnd) {
