@@ -51,7 +51,6 @@ eCosItems[DisplayFields[DisplayFields.Status]] = {
     width: 3,
     headerRow1: '',
     headerRow2: 'Status',
-    //colType: RTOSCommon.ColTypeEnum.colTypeCollapse
 };
 
 eCosItems[DisplayFields[DisplayFields.Priority]] = {
@@ -212,7 +211,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
 			stateText = 'creating';
 			break;
 		case ThreadStatus.EXITED:
-            statedesc = 'exited';
+            stateText = 'exited';
 			break;
 		default:
             stateText = 'unknown';
@@ -222,13 +221,13 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
         return stateText;
     }
 
-    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null, thHardware) {
+    protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null, thHardware: RTOSCommon.RTOSStrToValueMap | null) {
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: 0,
         };
         stackInfo.stackTop = 0;
 
-        if (thInfo === null) {
+        if ((thInfo === null) || (thHardware === null)) {
             return stackInfo;
         }
 
@@ -284,11 +283,11 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
 
             // thListHead is head object of circular linked list:
             let thFirstAddress = parseInt(thListHead?.value || '');
-            let thActiveAddress = undefined;
+            let thActiveAddress = 0;
 
             // Only CPU[0] currently:
             this.xCurrentThread?.getValue(frameId).then(
-                async(dummy: RTOSCommon.RTOSStrToValueMap) => {
+                async() => {
                     try {
                         const thActive = await this.xCurrentThread;
                         thActiveAddress = parseInt(thActive?.value || '');
@@ -310,8 +309,8 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
                         do {
                             if (Object.hasOwn(thCurrent, 'list_next')) {
                                 const thHardware = await this.getVarChildrenObj(thCurrent['Cyg_HardwareThread']?.ref, '');
-                                const thSched = await this.getVarChildrenObj(thCurrent['Cyg_SchedThread']?.ref, '');
-                                const thSchedImpl = await this.getVarChildrenObj(thSched['Cyg_SchedThread_Implementation']?.ref, '');
+                                const thSched = await this.getVarChildrenObj(thCurrent['Cyg_SchedThread']?.ref, '') || {};
+                                const thSchedImpl = await this.getVarChildrenObj(thSched['Cyg_SchedThread_Implementation']?.ref, '') || {};
 
                                 let thName = '[EMPTY]';
                                 if (thCurrent['name']) {
@@ -329,8 +328,8 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
 
                                 mySetter(DisplayFields.ID, thCurrent['unique_id'].val);
                                 mySetter(DisplayFields.Address, RTOSCommon.hexFormat(thAddress));
-                                mySetter(DisplayFields.Priority, Math.abs(thSchedImpl['priority'].val)); // decimal
-                                mySetter(DisplayFields.Status, this.getThreadState(thCurrent['state'].val, threadRunning));
+                                mySetter(DisplayFields.Priority, Math.abs(parseInt(thSchedImpl['priority'].val)).toString()); // decimal
+                                mySetter(DisplayFields.Status, this.getThreadState(parseInt(thCurrent['state'].val), threadRunning));
                                 mySetter(DisplayFields.Name, thName);
                                 if ((stackInfo.stackUsed !== undefined) && (stackInfo.stackSize !== undefined)) {
                                     const stackPercentVal = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
@@ -339,10 +338,14 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
                                 } else {
                                     mySetter(DisplayFields.StackPercent, '[unknown]');
                                 }
-                                mySetter(DisplayFields.StackBase, thHardware['stack_base'].val); // could use value de-referenced in getStackInfo()
-                                mySetter(DisplayFields.StackLimit, RTOSCommon.hexFormat(stackInfo.stackStart));
-                                mySetter(DisplayFields.StackPtr, thHardware['stack_ptr'].val);
-                                mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
+                                if (thHardware) {
+                                    mySetter(DisplayFields.StackBase, thHardware['stack_base'].val); // could use value de-referenced in getStackInfo()
+                                    mySetter(DisplayFields.StackLimit, RTOSCommon.hexFormat(stackInfo.stackStart));
+                                    mySetter(DisplayFields.StackPtr, thHardware['stack_ptr'].val);
+                                    if (stackInfo.stackTop !== undefined) {
+                                        mySetter(DisplayFields.StackTop, RTOSCommon.hexFormat(stackInfo.stackTop));
+                                    }
+                                }
 
                                 const thread: RTOSCommon.RTOSThreadInfo = {
                                     display: display,
@@ -388,7 +391,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
             this.foundThreads = [];
 
             this.pxThreadList?.getValue(frameId).then(
-                async (varObj: RTOSCommon.RTOSStrToValueMap) => {
+                async (varObj) => {
                     try {
                         await this.getThreadInfo(this.pxThreadList, frameId);
                         this.foundThreads.sort((a, b) => parseInt(a.display['ID'].text) - parseInt(b.display['ID'].text));
