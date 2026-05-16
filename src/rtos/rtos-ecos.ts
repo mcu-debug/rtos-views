@@ -168,7 +168,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
             try {
                 let ret: string = '';
                 if (!thInfo['name']?.val) {
-                    ret += 'Thread name missing: Enable ${strong("CYGVAR_KERNEL_THREADS_NAME")} if desired.<br>';
+                    ret += `Thread name missing: Enable ${strong('CYGVAR_KERNEL_THREADS_NAME')} if desired.<br>`;
                 }
                 // CONSIDER: Checking for further kernel features that may be useful for run-time diagnostics:
                 // e.g. CYGFUN_KERNEL_THREADS_STACK_LIMIT, CYGFUN_KERNEL_THREADS_STACK_MEASUREMENT, etc.
@@ -282,7 +282,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
             }
 
             // thListHead is head object of circular linked list:
-            let thFirstAddress = parseInt(thListHead?.value || '');
+            const thFirstAddress = parseInt(thListHead?.value || '');
             let thActiveAddress = 0;
 
             // Only CPU[0] currently:
@@ -318,7 +318,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
                                     thName = matchName ? matchName[1] : thName;
                                 }
 
-                                let threadRunning = (thAddress === thActiveAddress);
+                                const threadRunning = (thAddress === thActiveAddress);
                                 const stackInfo = await this.getStackInfo(thCurrent, thHardware);
 
                                 const display: { [key: string]: RTOSCommon.DisplayRowItem } = {};
@@ -391,7 +391,7 @@ export class RTOSeCos extends RTOSCommon.RTOSBase {
             this.foundThreads = [];
 
             this.pxThreadList?.getValue(frameId).then(
-                async (varObj) => {
+                async () => {
                     try {
                         await this.getThreadInfo(this.pxThreadList, frameId);
                         this.foundThreads.sort((a, b) => parseInt(a.display['ID'].text) - parseInt(b.display['ID'].text));
