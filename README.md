@@ -27,6 +27,9 @@ Here is an example of a uC/OS-III RTOS view
 Here is an example of an RTX5 RTOS view
 ![RTX5](./images/RTX5.png)
 
+Here is an example of an eCos view
+![eCos](./images/eCos.png)
+
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality
 
 # Contributors and maintainers
@@ -41,3 +44,4 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | uC/OS-III      | @github0null           |
 | ThreadX        | @raphaelmeyer          |
 | RTX5           | @thorstendb-ARM        |
+| eCos           | @RallySmith            |

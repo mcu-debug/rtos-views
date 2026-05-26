@@ -26,7 +26,8 @@
         "embedded",
         "rtos",
         "cortex",
-        "rtx5"
+        "rtx5",
+        "ecos"
     ],
     "activationEvents": [
         "onDebugResolve:cortex-debug",

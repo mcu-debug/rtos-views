@@ -11,6 +11,7 @@ import { RTOSChibiOS } from './rtos-chibios';
 import { RTOSZEPHYR } from './rtos-zephyr';
 import { RTOSThreadX } from './rtos-threadx';
 import { RTOSRTX5 } from './rtos-rtx5';
+import { RTOSeCos } from './rtos-ecos';
 
 import {
     IDebugTracker,
@@ -55,6 +56,8 @@ const RTOS_TYPES = {
     ThreadX: RTOSThreadX,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     RTX5: RTOSRTX5,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    eCos: RTOSeCos,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
