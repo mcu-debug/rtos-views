@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import * as vscode from 'vscode';
 import * as RTOSCommon from './rtos-common';
+import { DebugProtocol } from '@vscode/debugprotocol';
 
 // We will have two rows of headers for Zephyr and the table below describes
 // the columns headers for the two rows and the width of each column as a fraction
@@ -11,6 +12,7 @@ enum DisplayFields {
     Status,
     Priority,
     StackPercent,
+    StackPeak,
 }
 
 const RTOSZEPHYRItems: { [key: string]: RTOSCommon.DisplayColumnItem } = {};
@@ -43,6 +45,12 @@ RTOSZEPHYRItems[DisplayFields[DisplayFields.StackPercent]] = {
     width: 4,
     headerRow1: 'Stack Usage',
     headerRow2: '% (Used B / Size B)',
+    colType: RTOSCommon.ColTypeEnum.colTypePercentage,
+};
+RTOSZEPHYRItems[DisplayFields[DisplayFields.StackPeak]] = {
+    width: 4,
+    headerRow1: 'Stack Peak Usage',
+    headerRow2: '% (Peak B / Size B)',
     colType: RTOSCommon.ColTypeEnum.colTypePercentage,
 };
 
@@ -239,8 +247,19 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
                                 const stackPercentVal = Math.round((stackInfo.stackUsed / stackInfo.stackSize) * 100);
                                 const stackPercentText = `${stackPercentVal} % (${stackInfo.stackUsed} / ${stackInfo.stackSize})`;
                                 mySetter(DisplayFields.StackPercent, stackPercentText, stackPercentVal);
+
+                                if (RTOSCommon.RTOSBase.disableStackPeaks) {
+                                    mySetter(DisplayFields.StackPeak, '----');
+                                } else if (stackInfo.stackPeak !== undefined) {
+                                    const stackPeakPercentVal = Math.round((stackInfo.stackPeak / stackInfo.stackSize) * 100);
+                                    const stackPeakPercentText = `${stackPeakPercentVal} % (${stackInfo.stackPeak} / ${stackInfo.stackSize})`;
+                                    mySetter(DisplayFields.StackPeak, stackPeakPercentText, stackPeakPercentVal);
+                                } else {
+                                    mySetter(DisplayFields.StackPeak, '?? %');
+                                }
                             } else {
                                 mySetter(DisplayFields.StackPercent, '?? %');
+                                mySetter(DisplayFields.StackPeak, '?? %');
                             }
 
                             const thread: RTOSCommon.RTOSThreadInfo = {
@@ -344,6 +363,35 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
         }
     }
 
+    protected async calculateStackPeak(stackInfo: RTOSCommon.RTOSStackInfo): Promise<number | undefined> {
+        try {
+            if (stackInfo.stackStart === undefined || stackInfo.stackEnd === undefined || stackInfo.stackSize === undefined) {
+                return undefined;
+            }
+            const memArg: DebugProtocol.ReadMemoryArguments = {
+                memoryReference: RTOSCommon.hexFormat(Math.min(stackInfo.stackStart, stackInfo.stackEnd)),
+                count: stackInfo.stackSize,
+            };
+            const stackData = await this.session.customRequest('readMemory', memArg);
+            const buf = Buffer.from(stackData.data, 'base64');
+            stackInfo.bytes = new Uint8Array(buf);
+            let maxUsedBytes = stackInfo.stackSize;
+
+            for (let i = 0; i < stackInfo.bytes.length; i++) {
+                if (stackInfo.bytes[i] !== 0xaa) {
+                    break;
+                }
+
+                maxUsedBytes--;
+            }
+
+            return maxUsedBytes;
+        } catch (error) {
+            console.error('failed to read zephyr stack memory:', error);
+            return undefined;
+        }
+    }
+
     protected async getStackInfo(thInfo: RTOSCommon.RTOSStrToValueMap | null) {
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: 0,
@@ -395,6 +443,14 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
                         const stackDelta = stackInfo.stackTop - stackInfo.stackStart;
                         stackInfo.stackFree = stackDelta;
                         stackInfo.stackUsed = stackInfo.stackSize - stackDelta;
+                    }
+
+                    if (!RTOSCommon.RTOSBase.disableStackPeaks) {
+                        const maxStack = await this.calculateStackPeak(stackInfo);
+    
+                        if (maxStack !== undefined ) {
+                            stackInfo.stackPeak = maxStack;
+                        }
                     }
                 }
             }
