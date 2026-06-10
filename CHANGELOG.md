@@ -1,5 +1,7 @@
 # Change Log
 
+## 0.0.16 - Jun 9, 2026
+
 - FreeRTOS: Fix the issue where hints are not showing at all when Thread ID is missing.
 - zephyr: display stack peak usage.
 
