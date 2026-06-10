@@ -373,7 +373,7 @@ export class RTOSUCOS2 extends RTOSCommon.RTOSBase {
     ): Promise<EventInfo> {
         const eventTypeConverted = convertFsEventType(parseInt(eventObject['OSEventType']?.val));
 
-        const eventInfo: EventInfo = {address, eventType: eventTypeConverted };
+        const eventInfo: EventInfo = { address, eventType: eventTypeConverted };
         if (eventObject['OSEventName']?.val) {
             const value = eventObject['OSEventName']?.val;
             const matchName = value.match(/"(.*)"$/);
