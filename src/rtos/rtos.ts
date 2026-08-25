@@ -12,6 +12,7 @@ import { RTOSZEPHYR } from './rtos-zephyr';
 import { RTOSThreadX } from './rtos-threadx';
 import { RTOSRTX5 } from './rtos-rtx5';
 import { RTOSeCos } from './rtos-ecos';
+import { RTOSRTThread } from './rtos-rtthread';
 
 import {
     IDebugTracker,
@@ -58,6 +59,8 @@ const RTOS_TYPES = {
     RTX5: RTOSRTX5,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     eCos: RTOSeCos,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    'RT-Thread': RTOSRTThread,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
