@@ -1,11 +1,12 @@
 
-const fs = require('fs');
-const child_process = require('child_process');
+import { readFileSync } from 'fs';
+import { execSync, spawn } from 'child_process';
 
 let prog = '??';
 let tagName = '';
 let isDryRun = false;
 let vsxAlso = false;
+let vscePat = '';
 let openVsxPat = '';
 
 function errExit(...args) {
@@ -14,8 +15,7 @@ function errExit(...args) {
 }
 
 function ensureGitClean() {
-    const gitStatus = child_process
-        .execSync('git status --short')
+    const gitStatus = execSync('git status --short')
         .toString()
         .trim();
     if (gitStatus) {
@@ -27,7 +27,7 @@ function isPreRelease() {
     let obj;
     const path = './package.json';
     try {
-        const txt = fs.readFileSync(path);
+        const txt = readFileSync(path);
         obj = JSON.parse(txt.toString());
     }
     catch (e) {
@@ -55,13 +55,14 @@ function vsceRun(pkgOnly) {
     if (!isDryRun && !pkgOnly) {
         ensureGitClean();
     }
-    runProg(args, (code) => {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    runProg(args, { VSCE_PAT: vscePat }, (code) => {
         if (!pkgOnly && (code === 0)) {
             let gitCmd = ['git', 'tag', tagName];
-            runProg(gitCmd, (code) => {
+            runProg(gitCmd, {}, (code) => {
                 if (code === 0) {
                     gitCmd = ['git', 'push', 'origin', tagName];
-                    runProg(gitCmd, (code) => {
+                    runProg(gitCmd, {}, (code) => {
                         if (code !== 0) {
                             errExit(`Failed '${gitCmd}'`);
                         }
@@ -71,8 +72,8 @@ function vsceRun(pkgOnly) {
                 }
             });
             if (vsxAlso) {
-                vsxCmd = ['npx', 'ovsx', 'publish', '-p', openVsxPat];
-                runProg(vsxCmd, (code) => {
+                let vsxCmd = ['npx', 'ovsx', 'publish', '-p', openVsxPat];
+                runProg(vsxCmd, {}, (code) => {
                     if (code !== 0) {
                         errExit(`Failed '${vsxCmd}'`);
                     }
@@ -82,15 +83,16 @@ function vsceRun(pkgOnly) {
     });
 }
 
-function runProg(args, cb) {
+function runProg(args, env, cb) {
     if (isDryRun) {
         args.unshift('echo');
     }
     // console.log('Executing ' + args.join(' '));
     const cmd = args.join(' ');
     const arg0 = args.shift();
-    const prog = child_process.spawn(arg0, args, {
-        stdio:'inherit'
+    const prog = spawn(arg0, args, {
+        stdio:'inherit',
+        env: { ...process.env, ...env }
     });
     prog.on('error', (error) => {
         console.error(`Error running '${cmd}': ${error.message}`);
@@ -98,7 +100,7 @@ function runProg(args, cb) {
             cb(-1);
         }
     });
-    prog.on("close", (code) => {
+    prog.on('close', (code) => {
         if (!isDryRun) {
             console.log(`'${cmd}' ... exited with code ${code}`);
         }
@@ -120,6 +122,7 @@ function run() {
                 console.log(`Usage: node ${prog} [--dryrun] [--package] [--publish] [--vsx-also]`);
                 console.log('\t--package is by default, true');
                 process.exit(0);
+                break;
             }
             case '--dryrun': {
                 isDryRun = true;
@@ -151,6 +154,16 @@ function run() {
     }
     if (isPkg) {
         vsxAlso = false;
+    } else {
+        vscePat = process.env.VSCE_MD || '';
+        if (!vscePat) {
+            const msg = 'Environment variable VSCE_MD not set. It must contain the VS Code Marketplace PAT.';
+            if (isDryRun) {
+                console.log(`Warn: ${msg} (publish would fail here)`);
+            } else {
+                errExit(msg);
+            }
+        }
     }
     vsceRun(isPkg);
 }

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.0.17 - Oct 19, 2026
+
+- PR#101: Add API to allow registering debug type- #101
+
 ## 0.0.16 - Jun 9, 2026
 
 - FreeRTOS: Fix the issue where hints are not showing at all when Thread ID is missing.
