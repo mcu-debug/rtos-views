@@ -192,30 +192,43 @@ class MyDebugTracker {
                     resolve(false);
                 } else {
                     trackerApi = ret;
-                    const arg: IDebuggerTrackerSubscribeArg = {
-                        version: 1,
-                        body: {
-                            debuggers: TrackedDebuggers,
-                            handler: this.debugTrackerEventHandler.bind(this),
-                            wantCurrentStatus: true,
-                            notifyAllEvents: false,
-                            // Make sure you set debugLevel to zero for production
-                            debugLevel: 0,
-                        },
-                    };
-                    const result = trackerApi.subscribe(arg);
-                    if (typeof result === 'string') {
-                        vscode.window.showErrorMessage(
-                            `Subscription failed with extension 'debug-tracker-vscode' : ${result}`
-                        );
-                        resolve(false);
-                    } else {
-                        trackerApiClientInfo = result;
-                        resolve(true);
-                    }
+                    resolve(this.doSubscribe());
                 }
             });
         });
+    }
+
+    public resubscribe(): boolean {
+        if (!trackerApi) {
+            return false;
+        }
+        if (trackerApiClientInfo) {
+            trackerApi.unsubscribe(trackerApiClientInfo.clientId);
+        }
+        return this.doSubscribe();
+    }
+
+    private doSubscribe(): boolean {
+        const arg: IDebuggerTrackerSubscribeArg = {
+            version: 1,
+            body: {
+                debuggers: TrackedDebuggers,
+                handler: this.debugTrackerEventHandler.bind(this),
+                wantCurrentStatus: true,
+                notifyAllEvents: false,
+                // Make sure you set debugLevel to zero for production
+                debugLevel: 0,
+            },
+        };
+        const result = trackerApi.subscribe(arg);
+        if (typeof result === 'string') {
+            vscode.window.showErrorMessage(
+                `Subscription failed with extension 'debug-tracker-vscode' : ${result}`
+            );
+            return false;
+        }
+        trackerApiClientInfo = result;
+        return true;
     }
 
     private settingsChanged(e: vscode.ConfigurationChangeEvent) {
@@ -406,6 +419,13 @@ export class RTOSTracker implements DebugEventHandler {
             this.provider.showAndFocus();
         }
         this.update();
+    }
+
+    public addDebugType(debugType: string): void {
+        if (!TrackedDebuggers.includes(debugType)) {
+            TrackedDebuggers.push(debugType);
+            this.theTracker.resubscribe();
+        }
     }
 
     public notifyPanelDisposed() {
