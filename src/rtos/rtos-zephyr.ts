@@ -283,6 +283,7 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
                         resolve();
                     } catch (e) {
                         console.log('RTOSZEPHYR.getThreadInfo() error', e);
+                        resolve(); // show the threads found so far instead of hanging the panel
                     }
                 },
                 (e) => {
@@ -410,7 +411,8 @@ export class RTOSZEPHYR extends RTOSCommon.RTOSBase {
             return stackInfo;
         }
 
-        const TopOfStack = callee_saved.psp.val; // FIXME This is not right for all arches => include\zephyr\arch\....\thread.h
+        // the saved stack pointer is 'psp' on Cortex-M and 'sp' on RISC-V (include/zephyr/arch/*/thread.h)
+        const TopOfStack = (callee_saved.psp ?? callee_saved.sp)?.val;
         stackInfo.stackTop = parseInt(TopOfStack);
 
         /* only available with CONFIG_THREAD_STACK_INFO (optional) */
