@@ -45,3 +45,4 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | ThreadX        | @raphaelmeyer          |
 | RTX5           | @thorstendb-ARM        |
 | eCos           | @RallySmith            |
+| RT-Thread (beta) | @Pandafeng-HHU        |
