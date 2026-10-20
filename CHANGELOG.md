@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.0.17 - Oct 20, 2026
+
+- Prevent a hang in Zephyr PR#103
+- Handle non Cortex-M devices in Zephyr for stack pointer PR#103
+- **New:** Support for RT-Thread PR#102. Thanks @Pandafeng-HHU
+
 ## 0.0.17 - Oct 19, 2026
 
 - PR#101: Add API to allow registering debug type- #101
