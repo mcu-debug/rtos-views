@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- **New:** Support for Ada tasks of GNAT bareboard runtimes (light-tasking and embedded profiles)
+
 ## 0.0.17 - Oct 20, 2026
 
 - Prevent a hang in Zephyr PR#103

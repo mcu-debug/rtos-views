@@ -13,6 +13,7 @@ import { RTOSThreadX } from './rtos-threadx';
 import { RTOSRTX5 } from './rtos-rtx5';
 import { RTOSeCos } from './rtos-ecos';
 import { RTOSRTThread } from './rtos-rtthread';
+import { RTOSAdaBareboard } from './rtos-ada';
 
 import {
     IDebugTracker,
@@ -61,6 +62,8 @@ const RTOS_TYPES = {
     eCos: RTOSeCos,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'RT-Thread': RTOSRTThread,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    'Ada (GNAT bareboard)': RTOSAdaBareboard,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
