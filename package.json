@@ -27,7 +27,8 @@
         "rtos",
         "cortex",
         "rtx5",
-        "ecos"
+        "ecos",
+        "ada"
     ],
     "activationEvents": [
         "onDebugResolve:cortex-debug",

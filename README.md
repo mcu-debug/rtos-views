@@ -30,6 +30,9 @@ Here is an example of an RTX5 RTOS view
 Here is an example of an eCos view
 ![eCos](./images/eCos.png)
 
+Here is an example of an Ada Tasking view
+![GNAT](./images/GNAT.png)
+
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality
 
 # Contributors and maintainers
@@ -46,3 +49,18 @@ NOTE: The tab name is in the screenshots is called `XRTOS` so it does not confli
 | RTX5           | @thorstendb-ARM        |
 | eCos           | @RallySmith            |
 | RT-Thread (beta) | @Pandafeng-HHU        |
+| Ada/GNAT (beta)| @reznikmm              |
+
+# Ada (GNAT bare-metal runtimes)
+
+Tasks of the GNAT bare-metal Ravenscar/Jorvik runtimes (`light-tasking` and `embedded` profiles, e.g. from
+[Community Runtimes](https://github.com/damaki/community-bb-runtimes) or
+[AdaCore bb-runtimes](https://github.com/AdaCore/bb-runtimes)) are shown
+for supported targets. The view reads the thread descriptors from memory. If the runtime was built with
+debug information, the descriptor layout is taken from it; otherwise (the default "Production" build) a built-in
+layout is used, so debug information for the runtime is not required. The footer of the table tells which one
+is in use. Task names come from the symbol of the task
+object (for example `workers.fast_blinker`).
+
+Peak stack usage is an estimate: the runtime does not fill stacks with a pattern, so the view counts the
+untouched (zero) bytes at the bottom of each stack, which lives in zero-initialized memory.
