@@ -146,7 +146,7 @@ export class RTOSAdaBareboard extends RTOSCommon.RTOSBase {
     private timeInfo = '';
 
     constructor(public session: vscode.DebugSession) {
-        super(session, 'Ada');
+        super(session, 'Ada Tasking');
     }
 
     public async tryDetect(useFrameId: number): Promise<RTOSCommon.RTOSBase> {
@@ -159,7 +159,7 @@ export class RTOSAdaBareboard extends RTOSCommon.RTOSBase {
             const globalList = await this.getVarIfEmpty(undefined, useFrameId, `&${GlobalListSymbol}`, true);
             this.globalListAddress = globalList ? this.parseAddress(globalList.value) : undefined;
             if (!this.globalListAddress) {
-                throw new Error('GNAT bareboard tasking runtime was not found');
+                throw new Error('Ada Tasking runtime was not found');
             }
 
             const runningThreadTable = await this.getVarIfEmpty(

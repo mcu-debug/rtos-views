@@ -30,7 +30,7 @@ Here is an example of an RTX5 RTOS view
 Here is an example of an eCos view
 ![eCos](./images/eCos.png)
 
-Here is an example of an Ada bare-metal runtime view
+Here is an example of an Ada Tasking view
 ![GNAT](./images/GNAT.png)
 
 NOTE: The tab name is in the screenshots is called `XRTOS` so it does not conflict with Cortex-Debug. Once the migration is complete, it will be called `RTOS` and Cortex-Debug itself will not have this functionality

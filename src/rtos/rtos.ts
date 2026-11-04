@@ -63,7 +63,7 @@ const RTOS_TYPES = {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'RT-Thread': RTOSRTThread,
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    'Ada (GNAT bareboard)': RTOSAdaBareboard,
+    'Ada Tasking': RTOSAdaBareboard,
 };
 
 const defaultHtmlInfo: RTOSCommon.HtmlInfo = { html: '', css: '' };
