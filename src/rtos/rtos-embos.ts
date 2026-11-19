@@ -58,6 +58,24 @@ RTOSEMBOSItems[DisplayFields[DisplayFields.StackPeakPercent]] = {
 
 const DisplayFieldNames: string[] = Object.keys(RTOSEMBOSItems);
 
+/**
+ * Parses a numeric value as formatted by the debug adapter. Besides plain numbers this handles e.g. IAR C-SPY
+ * formats such as digit separators ("1'024", "0x2'998C"), symbol suffixes ("0x2'54D0 (fan + 88)"),
+ * char values ("'.' (0x01)") and enums ("OS_OK (0)").
+ */
+function parseDapNumber(value: string | undefined | null): number {
+    if (value === undefined || value === null) {
+        return NaN;
+    }
+    const str = String(value).trim();
+    const charVal = str.match(/^'.*'\s*\((0x[0-9a-fA-F]+)\)$/);
+    if (charVal) {
+        return Number(charVal[1]);
+    }
+    const match = str.match(/0x[0-9a-fA-F][0-9a-fA-F']*|-?\d[\d']*/);
+    return match ? Number(match[0].replace(/'/g, '')) : NaN;
+}
+
 export class RTOSEmbOS extends RTOSCommon.RTOSBase {
     // We keep a bunch of variable references (essentially pointers) that we can use to query for values
     // Since all of them are global variable, we only need to create them once per session. These are
@@ -189,11 +207,12 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                             isRunning = '1';
                         }
 
-                        if (undefined !== isRunning && !isNaN(isRunning) && 0 !== parseInt(isRunning)) {
+                        const isRunningVal = parseDapNumber(isRunning);
+                        if (!isNaN(isRunningVal) && 0 !== isRunningVal) {
                             const taskList = this.OSGlobalVal['pTask']?.val;
-                            if (undefined !== taskList && 0 !== parseInt(taskList)) {
+                            if (undefined !== taskList && 0 !== parseDapNumber(taskList)) {
                                 if (this.OSGlobalVal['pCurrentTask']?.val) {
-                                    this.pCurrentTaskVal = parseInt(this.OSGlobalVal['pCurrentTask']?.val);
+                                    this.pCurrentTaskVal = parseDapNumber(this.OSGlobalVal['pCurrentTask']?.val);
                                 } else {
                                     this.pCurrentTaskVal = Number.MAX_SAFE_INTEGER;
                                 }
@@ -251,12 +270,12 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
             taskListEntry.getVarChildrenObj(frameId).then(
                 async (obj: RTOSCommon.RTOSStrToValueMap) => {
                     try {
-                        let curTaskObj = obj;
-                        let thAddress = parseInt(taskListEntry.value || '');
+                        let curTaskObj = (await this.derefTaskObj(obj, 'pTask')) || {};
+                        let thAddress = parseDapNumber(taskListEntry.value || '');
 
                         let threadCount = 1;
 
-                        const CurOSTime = parseInt(this.OSGlobalVal['Time']?.val) || 0;
+                        const CurOSTime = parseDapNumber(this.OSGlobalVal['Time']?.val) || 0;
 
                         do {
                             let thName = '???';
@@ -288,7 +307,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                             );
 
                             const myHexNumStrCon = (hexNumberString: string): string => {
-                                return parseInt(hexNumberString).toString();
+                                return parseDapNumber(hexNumberString).toString();
                             };
 
                             const prioString = `${myHexNumStrCon(curTaskObj['Priority']?.val)},${myHexNumStrCon(
@@ -325,9 +344,13 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                             this.foundThreads.push(thread);
                             this.createHmlHelp(thread, curTaskObj);
 
-                            thAddress = parseInt(curTaskObj['pNext']?.val);
+                            /* treat unparsable values such as "NULL" as end of list */
+                            thAddress = parseDapNumber(curTaskObj['pNext']?.val) || 0;
                             if (0 !== thAddress) {
-                                const nextThreadObj = await this.getVarChildrenObj(curTaskObj['pNext']?.ref, 'pNext');
+                                const nextThreadObj = await this.derefTaskObj(
+                                    await this.getVarChildrenObj(curTaskObj['pNext']?.ref, 'pNext'),
+                                    'pNext'
+                                );
                                 curTaskObj = nextThreadObj || {};
                                 threadCount++;
                             }
@@ -342,7 +365,8 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
 
                         resolve();
                     } catch (e) {
-                        console.log('RTOSEMBOS.getThreadInfo() error', e);
+                        console.error('RTOSEMBOS.getThreadInfo() error', e);
+                        reject(e);
                     }
                 },
                 (e) => {
@@ -352,12 +376,33 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         });
     }
 
+    /**
+     * Some debug adapters (e.g. IAR C-SPY) expose a pointer as a single dereference child instead of
+     * directly exposing the members of the pointed-to struct. Step into such a child to reach the OS_TASK members.
+     */
+    private async derefTaskObj(
+        obj: RTOSCommon.RTOSStrToValueMap | null,
+        dbg: string
+    ): Promise<RTOSCommon.RTOSStrToValueMap | null> {
+        for (let i = 0; i < 2 && obj; i++) {
+            if (Object.hasOwn(obj, 'pNext') || Object.hasOwn(obj, 'Stat')) {
+                break;
+            }
+            const keys = Object.keys(obj);
+            if (keys.length !== 1 || !obj[keys[0]]?.ref) {
+                break;
+            }
+            obj = await this.getVarChildrenObj(obj[keys[0]].ref, dbg);
+        }
+        return obj;
+    }
+
     protected async analyzeTaskState(
         curTaskObj: RTOSCommon.RTOSStrToValueMap,
         objectNameEntries: Map<number, string>,
         CurOSTime: number
     ): Promise<TaskState> {
-        const state = parseInt(curTaskObj['Stat']?.val);
+        const state = parseDapNumber(curTaskObj['Stat']?.val);
 
         const suspendCount = state & OS_TASK_STATE_SUSPEND_MASK;
         if (suspendCount !== 0) {
@@ -368,7 +413,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         let TimeoutActive = false;
 
         if (state & OS_TASK_STATE_TIMEOUT_ACTIVE) {
-            pendTimeout = parseInt(curTaskObj['Timeout']?.val);
+            pendTimeout = parseDapNumber(curTaskObj['Timeout']?.val);
             pendTimeout = getRemainingTicksFromTimeout(CurOSTime, pendTimeout);
             TimeoutActive = true;
         }
@@ -388,8 +433,8 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 resultState.addEventType(maskedState);
 
                 if (curTaskObj['EventMask']?.val) {
-                    const eventMask = parseInt(curTaskObj['EventMask']?.val); // Waiting bits
-                    const event = parseInt(curTaskObj['Events']?.val); // Set bits
+                    const eventMask = parseDapNumber(curTaskObj['EventMask']?.val); // Waiting bits
+                    const event = parseDapNumber(curTaskObj['Events']?.val); // Set bits
                     const eventInfo: EventInfo = {
                         address: eventMask,
                         eventType: state,
@@ -410,11 +455,11 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                 resultState.addEventType(maskedState);
 
                 if (curTaskObj['pWaitList']?.val) {
-                    const waitListEntryAddress = parseInt(curTaskObj['pWaitList']?.val);
+                    const waitListEntryAddress = parseDapNumber(curTaskObj['pWaitList']?.val);
 
                     if (waitListEntryAddress !== 0) {
                         const waitListEntry = await this.getVarChildrenObj(curTaskObj['pWaitList']?.ref, 'pWaitList');
-                        const waitObject = parseInt(waitListEntry ? waitListEntry['pWaitObj']?.val : '');
+                        const waitObject = parseDapNumber(waitListEntry ? waitListEntry['pWaitObj']?.val : '');
                         const eventInfo: EventInfo = { address: waitObject, eventType: state };
 
                         if (objectNameEntries.has(waitObject)) {
@@ -454,23 +499,23 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
         let Stack = 0;
         if (EndOfStack && StackSize) {
             if (this.stackIncrements < 0) {
-                Stack = parseInt(EndOfStack) + parseInt(StackSize);
+                Stack = parseDapNumber(EndOfStack) + parseDapNumber(StackSize);
             } else {
-                Stack = parseInt(EndOfStack) - parseInt(StackSize);
+                Stack = parseDapNumber(EndOfStack) - parseDapNumber(StackSize);
             }
         } else {
             /* As stackStart is mandatory, we need to set it to some reasonable value */
-            Stack = parseInt(TopOfStack);
+            Stack = parseDapNumber(TopOfStack);
         }
 
         const stackInfo: RTOSCommon.RTOSStackInfo = {
             stackStart: Stack,
         };
-        stackInfo.stackTop = parseInt(TopOfStack);
+        stackInfo.stackTop = parseDapNumber(TopOfStack);
 
         if (EndOfStack && StackSize) {
-            stackInfo.stackEnd = parseInt(EndOfStack);
-            stackInfo.stackSize = parseInt(StackSize);
+            stackInfo.stackEnd = parseDapNumber(EndOfStack);
+            stackInfo.stackSize = parseDapNumber(StackSize);
 
             if (this.stackIncrements < 0) {
                 const stackDelta = stackInfo.stackStart - stackInfo.stackTop;
@@ -519,12 +564,12 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
             await this.OSGlobalpObjNameRoot.getValue(frameId);
 
             /* Follow the linked list of object identifier nodes */
-            if (0 !== parseInt(this.OSGlobalpObjNameRoot.value || '')) {
+            if (0 !== parseDapNumber(this.OSGlobalpObjNameRoot.value || '')) {
                 let entry: RTOSCommon.RTOSStrToValueMap | null = await this.OSGlobalpObjNameRoot.getVarChildrenObj(
                     frameId
                 );
                 while (entry) {
-                    const objectId = parseInt(entry['pOSObjID']?.val);
+                    const objectId = parseDapNumber(entry['pOSObjID']?.val);
                     if (!objectId || objectId === 0) {
                         break;
                     }
@@ -536,7 +581,7 @@ export class RTOSEmbOS extends RTOSCommon.RTOSBase {
                         result.set(objectId, objectName);
                     }
 
-                    const nextEntryAddr = parseInt(entry['pNext']?.val);
+                    const nextEntryAddr = parseDapNumber(entry['pNext']?.val);
                     if (nextEntryAddr === 0) {
                         break;
                     } else {
